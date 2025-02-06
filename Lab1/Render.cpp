@@ -162,3 +162,23 @@ bool Render::resize(UINT width, UINT height)
 
     return true;
 }
+
+HRESULT Render::setupBackBuffer()
+{
+    ID3D11Texture2D* pBackBuffer = NULL;
+    HRESULT result = m_pSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (LPVOID*)&pBackBuffer);
+    assert(SUCCEEDED(result));
+    if (SUCCEEDED(result))
+    {
+        result = m_pDevice->CreateRenderTargetView(pBackBuffer, NULL, &m_pBackBufferRTV);
+        assert(SUCCEEDED(result));
+
+        if (pBackBuffer != nullptr)
+        {
+            pBackBuffer->Release();
+            pBackBuffer = nullptr;
+        }
+    }
+
+    return result;
+}
