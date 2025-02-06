@@ -119,3 +119,19 @@ void Render::terminate()
         m_pDevice = nullptr;
     }
 }
+
+bool Render::render()
+{
+    m_pDeviceContext->ClearState();
+
+    ID3D11RenderTargetView* views[] = { m_pBackBufferRTV };
+    m_pDeviceContext->OMSetRenderTargets(1, views, nullptr);
+
+    static const FLOAT BackColor[4] = { 0.38f, 0.67f, 0.27f, 1.0f };
+    m_pDeviceContext->ClearRenderTargetView(m_pBackBufferRTV, BackColor);
+
+    HRESULT result = m_pSwapChain->Present(0, 0);
+    assert(SUCCEEDED(result));
+
+    return SUCCEEDED(result);
+}
