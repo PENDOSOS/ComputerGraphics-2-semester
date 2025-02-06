@@ -15,7 +15,7 @@ public:
         , m_height(16)
     {}
 
-    bool init(HWND hWnd);
+    bool init(HWND window);
     void terminate();
 
     bool render();
