@@ -135,3 +135,30 @@ bool Render::render()
 
     return SUCCEEDED(result);
 }
+
+bool Render::resize(UINT width, UINT height)
+{
+    if (width != m_width || height != m_height)
+    {
+        if (m_pBackBufferRTV != nullptr)
+        {
+            m_pBackBufferRTV->Release();
+            m_pBackBufferRTV = nullptr;
+        }
+
+        HRESULT result = m_pSwapChain->ResizeBuffers(2, width, height, DXGI_FORMAT_R8G8B8A8_UNORM, 0);
+        assert(SUCCEEDED(result));
+
+        if (SUCCEEDED(result))
+        {
+            m_width = width;
+            m_height = height;
+
+            result = setupBackBuffer();
+        }
+
+        return SUCCEEDED(result);
+    }
+
+    return true;
+}
