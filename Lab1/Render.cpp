@@ -2,6 +2,9 @@
 
 #include "Render.h"
 
+#pragma comment(lib, "dxgi.lib") // don't work on my computer without these libs
+#pragma comment(lib, "d3d11.lib") // uncomment if it doesn't launch
+
 bool Render::init(HWND window)
 {
     HRESULT result;

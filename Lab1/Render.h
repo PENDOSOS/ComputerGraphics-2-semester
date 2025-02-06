@@ -15,13 +15,17 @@ public:
         , m_height(16)
     {}
 
+    ~Render() { terminate(); }
+
     bool init(HWND window);
-    void terminate();
+    
 
     bool render();
     bool resize(UINT width, UINT height);
 
 private:
+    void terminate();
+
     HRESULT setupBackBuffer();
 
 private:

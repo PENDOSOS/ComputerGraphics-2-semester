@@ -3,6 +3,7 @@
 
 #include "framework.h"
 #include "Window.h"
+#include "Render.h"
 
 #define MAX_LOADSTRING 100
 
@@ -19,6 +20,8 @@ INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
 
 UINT                WindowWidth = 1280;
 UINT                WindowHeight = 720;
+
+Render* pRender = nullptr;
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                      _In_opt_ HINSTANCE hPrevInstance,
@@ -56,12 +59,17 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                 TranslateMessage(&msg);
                 DispatchMessage(&msg);
             }
+
             if (msg.message == WM_QUIT)
             {
                 exit == true;
             }
         }
+
+        pRender->render();
     }
+
+    delete pRender;
 
     return (int) msg.wParam;
 }
@@ -116,6 +124,13 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
       return FALSE;
    }
 
+   pRender = new Render();
+   if (!pRender->init(hWnd))
+   {
+       delete pRender;
+       return FALSE;
+   }
+
    ShowWindow(hWnd, nCmdShow);
    UpdateWindow(hWnd);
 
@@ -149,8 +164,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     switch (message)
     {
     case WM_SIZE:
-        RECT rc;
-        GetClientRect(hWnd, &rc);
+        if (pRender != nullptr)
+        {
+            RECT rc;
+            GetClientRect(hWnd, &rc);
+
+            pRender->resize(rc.right - rc.left, rc.bottom - rc.top);
+        }
         break;
     case WM_COMMAND:
         {
