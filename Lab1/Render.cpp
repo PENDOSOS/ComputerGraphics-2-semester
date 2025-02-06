@@ -92,3 +92,30 @@ bool Render::init(HWND window)
 
     return SUCCEEDED(result);
 }
+
+void Render::terminate()
+{
+    if (m_pBackBufferRTV != nullptr)
+    {
+        m_pBackBufferRTV->Release();
+        m_pBackBufferRTV = nullptr;
+    }
+
+    if (m_pSwapChain != nullptr)
+    {
+        m_pSwapChain->Release();
+        m_pSwapChain = nullptr;
+    }
+
+    if (m_pDeviceContext != nullptr)
+    {
+        m_pDeviceContext->Release();
+        m_pDeviceContext = nullptr;
+    }
+
+    if (m_pDevice != nullptr)
+    {
+        m_pDevice->Release();
+        m_pDevice = nullptr;
+    }
+}
