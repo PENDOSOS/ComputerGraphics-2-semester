@@ -108,7 +108,16 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EntryPointSymbol>
+      </EntryPointSymbol>
     </Link>
+    <FxCompile>
+      <ShaderModel>5.0</ShaderModel>
+      <EntryPointName>main</EntryPointName>
+    </FxCompile>
+    <PreBuildEvent>
+      <Command>xcopy "$(ProjectDir)\shaders" "$(SolutionDir)\x64\Debug\shaders" /e /i /y</Command>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -125,16 +134,21 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
+    <PreBuildEvent>
+      <Command>xcopy "$(ProjectDir)\shaders" "$(SolutionDir)\x64\Release\shaders" /e /i /y</Command>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="framework.h" />
     <ClInclude Include="Render.h" />
+    <ClInclude Include="Triangle.h" />
     <ClInclude Include="Window.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Render.cpp" />
+    <ClCompile Include="Triangle.cpp" />
     <ClCompile Include="Window.cpp" />
   </ItemGroup>
   <ItemGroup>
