@@ -1,7 +1,6 @@
 #pragma once
 
-#include <dxgi.h>
-#include <d3d11.h>
+#include "Triangle.h"
 
 class Render
 {
@@ -13,6 +12,7 @@ public:
         , m_pBackBufferRTV(nullptr)
         , m_width(16)
         , m_height(16)
+        , m_pTriangle(nullptr)
     {}
 
     ~Render() { terminate(); }
@@ -37,5 +37,7 @@ private:
 
     UINT m_width;
     UINT m_height;
+
+    Triangle* m_pTriangle;
 };
 

@@ -93,11 +93,14 @@ bool Render::init(HWND window)
         pFactory = nullptr;
     }
 
+    m_pTriangle = new Triangle(m_pDevice);
+
     return SUCCEEDED(result);
 }
 
 void Render::terminate()
 {
+    delete m_pTriangle;
     if (m_pBackBufferRTV != nullptr)
     {
         m_pBackBufferRTV->Release();
@@ -121,6 +124,7 @@ void Render::terminate()
         m_pDevice->Release();
         m_pDevice = nullptr;
     }
+
 }
 
 bool Render::render()
@@ -132,6 +136,8 @@ bool Render::render()
 
     static const FLOAT BackColor[4] = { 0.38f, 0.67f, 0.27f, 1.0f };
     m_pDeviceContext->ClearRenderTargetView(m_pBackBufferRTV, BackColor);
+
+    m_pTriangle->render(m_pDeviceContext, m_width, m_height);
 
     HRESULT result = m_pSwapChain->Present(0, 0);
     assert(SUCCEEDED(result));
