@@ -1,21 +1,13 @@
-﻿#pragma once
-
-#include <set>
+#pragma once
 
 #include "framework.h"
 
-struct triangleVertex
-{
-	float x, y, z;
-	COLORREF color;
-};
-
-class Triangle
+class Cube
 {
 public:
-	Triangle(ID3D11Device* device);
-	~Triangle();
-	
+	Cube(ID3D11Device* device);
+	~Cube();
+
 	bool initBuffers();
 	bool initInputLayout();
 
@@ -27,12 +19,10 @@ public:
 	}
 
 	void render(ID3D11DeviceContext* context, UINT width, UINT height);
-
 private:
 	void terminate();
 
 	bool readFileContent(LPCTSTR filename, std::vector<char>& data);
-
 private:
 	ID3D11Device* m_pDevice;
 

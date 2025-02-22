@@ -21,3 +21,9 @@
 
 #include <string>
 #include <vector>
+
+enum shader_stage
+{
+	Vertex,
+	Pixel,
+};
