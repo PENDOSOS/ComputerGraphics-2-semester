@@ -2,6 +2,12 @@
 
 #include "framework.h"
 
+struct CubeVertex
+{
+	DirectX::XMFLOAT3 Pos;
+	DirectX::XMFLOAT4 Color;
+};
+
 class Cube
 {
 public:
