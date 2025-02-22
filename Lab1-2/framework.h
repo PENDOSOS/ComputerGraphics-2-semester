@@ -103,7 +103,7 @@ bool readFileContent(LPCTSTR filename, std::vector<char>& data)
     return error == NO_ERROR;
 }
 
-bool compileShader(LPCTSTR srcFilename, const std::vector<LPCSTR>& defines, const shader_stage& stage, ID3D11DeviceChild** ppShader, ID3DBlob** ppShaderBinary)
+bool compileShader(ID3D11Device* device, LPCTSTR srcFilename, const std::vector<LPCSTR>& defines, const shader_stage& stage, ID3D11DeviceChild** ppShader, ID3DBlob** ppShaderBinary = nullptr)
 {
     std::vector<char> data;
     bool res = readFileContent(srcFilename, data);
@@ -136,7 +136,7 @@ bool compileShader(LPCTSTR srcFilename, const std::vector<LPCSTR>& defines, cons
             {
                 return false;
             }
-            result = m_pDevice->CreateVertexShader(pCode->GetBufferPointer(), pCode->GetBufferSize(), nullptr, &pVertexShader);
+            result = device->CreateVertexShader(pCode->GetBufferPointer(), pCode->GetBufferSize(), nullptr, &pVertexShader);
             if (SUCCEEDED(result))
             {
                 *ppShader = pVertexShader;
@@ -151,7 +151,7 @@ bool compileShader(LPCTSTR srcFilename, const std::vector<LPCSTR>& defines, cons
             {
                 return false;
             }
-            result = m_pDevice->CreatePixelShader(pCode->GetBufferPointer(), pCode->GetBufferSize(), nullptr, &pPixelShader);
+            result = device->CreatePixelShader(pCode->GetBufferPointer(), pCode->GetBufferSize(), nullptr, &pPixelShader);
             if (SUCCEEDED(result))
             {
                 *ppShader = pPixelShader;

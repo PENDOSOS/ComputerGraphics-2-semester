@@ -72,11 +72,11 @@ bool Triangle::initInputLayout()
     ID3DBlob* pVertexShaderCode = nullptr;
     if (SUCCEEDED(result))
     {
-        result = compileShader(L"shaders/vertex_shader.hlsl", {}, shader_stage::Vertex, (ID3D11DeviceChild**)&m_pVertexShader, &pVertexShaderCode);
+        result = compileShader(m_pDevice, L"shaders/vertex_shader.hlsl", {}, shader_stage::Vertex, (ID3D11DeviceChild**)&m_pVertexShader, &pVertexShaderCode);
     }
     if (SUCCEEDED(result))
     {
-        result = compileShader(L"shaders/pixel_shader.hlsl", {}, shader_stage::Pixel, (ID3D11DeviceChild**)&m_pPixelShader);
+        result = compileShader(m_pDevice, L"shaders/pixel_shader.hlsl", {}, shader_stage::Pixel, (ID3D11DeviceChild**)&m_pPixelShader);
     }
 
     if (SUCCEEDED(result))

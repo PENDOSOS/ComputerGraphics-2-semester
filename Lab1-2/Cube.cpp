@@ -95,7 +95,32 @@ bool Cube::initInputLayout()
     };
 
     HRESULT result = S_OK;
-    
-    return true;
+
+    ID3DBlob* pVertexShaderCode = nullptr;
+    if (SUCCEEDED(result))
+    {
+        result = compileShader(m_pDevice, L"shaders/cube_vs.hlsl", {}, shader_stage::Vertex, (ID3D11DeviceChild**)&m_pVertexShader, &pVertexShaderCode);
+    }
+    if (SUCCEEDED(result))
+    {
+        result = compileShader(m_pDevice, L"shaders/cube_ps.hlsl", {}, shader_stage::Pixel, (ID3D11DeviceChild**)&m_pPixelShader);
+    }
+
+    if (SUCCEEDED(result))
+    {
+        result = m_pDevice->CreateInputLayout(inputDesc, 2, pVertexShaderCode->GetBufferPointer(), pVertexShaderCode->GetBufferSize(), &m_pInputLayout);
+        if (SUCCEEDED(result))
+        {
+            result = SetResourceName(m_pInputLayout, "InputLayout");
+        }
+    }
+
+    if (pVertexShaderCode != nullptr)
+    {
+        pVertexShaderCode->Release();
+        pVertexShaderCode = nullptr;
+    }
+
+    return result;
 }
 
