@@ -87,3 +87,15 @@ bool Cube::initBuffers()
 	return true;
 }
 
+bool Cube::initInputLayout()
+{
+    D3D11_INPUT_ELEMENT_DESC inputDesc[] = {
+        {"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
+        {"COLOR", 0, DXGI_FORMAT_R8G8B8A8_UNORM, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0}
+    };
+
+    HRESULT result = S_OK;
+    
+    return true;
+}
+
