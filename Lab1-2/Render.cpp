@@ -81,6 +81,14 @@ bool Render::init(HWND window)
         result = setupBackBuffer();
     }
 
+    if (SUCCEEDED(result))
+    {
+        m_pCamera->poi = { 0,0,0 };
+        m_pCamera->r = 5.0f;
+        m_pCamera->phi = -(float)PI / 4;
+        m_pCamera->theta = (float)PI / 4;
+    }
+
     if (pSelectedAdapter != nullptr)
     {
         pSelectedAdapter->Release();
@@ -100,7 +108,21 @@ bool Render::init(HWND window)
 
 void Render::terminate()
 {
+    delete m_pCamera;
     delete m_pTriangle;
+
+    if (m_pGeomBuffer != nullptr)
+    {
+        m_pGeomBuffer->Release();
+        m_pGeomBuffer = nullptr;
+    }
+
+    if (m_pSceneBuffer != nullptr)
+    {
+        m_pSceneBuffer->Release();
+        m_pSceneBuffer = nullptr;
+    }
+
     if (m_pBackBufferRTV != nullptr)
     {
         m_pBackBufferRTV->Release();
@@ -134,7 +156,7 @@ bool Render::render()
     ID3D11RenderTargetView* views[] = { m_pBackBufferRTV };
     m_pDeviceContext->OMSetRenderTargets(1, views, nullptr);
 
-    static const FLOAT BackColor[4] = { 0.38f, 0.67f, 0.27f, 1.0f };
+    static const FLOAT BackColor[4] = { 0.25f, 0.25f, 0.25f, 1.0f };
     m_pDeviceContext->ClearRenderTargetView(m_pBackBufferRTV, BackColor);
 
     m_pTriangle->render(m_pDeviceContext, m_width, m_height);
@@ -189,5 +211,74 @@ HRESULT Render::setupBackBuffer()
         }
     }
 
+    return result;
+}
+
+HRESULT Render::initScene()
+{
+    D3D11_BUFFER_DESC sceneBufferDesc = {};
+    sceneBufferDesc.ByteWidth = sizeof(SceneBuffer);
+    sceneBufferDesc.Usage = D3D11_USAGE_DYNAMIC;
+    sceneBufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+    sceneBufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+    sceneBufferDesc.MiscFlags = 0;
+    sceneBufferDesc.StructureByteStride = 0;
+
+    HRESULT result = m_pDevice->CreateBuffer(&sceneBufferDesc, nullptr, &m_pSceneBuffer);
+    assert(SUCCEEDED(result));
+
+    if (!SUCCEEDED(result))
+    {
+        return result;
+    }
+    result = SetResourceName(m_pSceneBuffer, "scene buffer");
+
+    D3D11_BUFFER_DESC geomBufferDesc = {};
+    geomBufferDesc.ByteWidth = sizeof(GeomBuffer);
+    geomBufferDesc.Usage = D3D11_USAGE_DEFAULT;
+    geomBufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+    geomBufferDesc.CPUAccessFlags = 0;
+    geomBufferDesc.MiscFlags = 0;
+    geomBufferDesc.StructureByteStride = 0;
+
+    GeomBuffer geomBuffer;
+    geomBuffer.M = DirectX::XMMatrixIdentity();
+
+    D3D11_SUBRESOURCE_DATA data;
+    data.pSysMem = &geomBuffer;
+    data.SysMemPitch = sizeof(geomBuffer);
+    data.SysMemSlicePitch = 0;
+
+    result = m_pDevice->CreateBuffer(&geomBufferDesc, &data, &m_pGeomBuffer);
+    assert(SUCCEEDED(result));
+    if (!SUCCEEDED(result))
+    {
+        return result;
+    }
+    result = SetResourceName(m_pGeomBuffer, "geom buffer");
+
+    if (SUCCEEDED(result))
+    {
+        D3D11_RASTERIZER_DESC desc = {};
+        desc.AntialiasedLineEnable = FALSE;
+        desc.FillMode = D3D11_FILL_SOLID;
+        desc.CullMode = D3D11_CULL_NONE;
+        desc.FrontCounterClockwise = FALSE;
+        desc.DepthBias = 0;
+        desc.SlopeScaledDepthBias = 0.0f;
+        desc.DepthBiasClamp = 0.0f;
+        desc.DepthClipEnable = TRUE;
+        desc.ScissorEnable = FALSE;
+        desc.MultisampleEnable = FALSE;
+
+        result = m_pDevice->CreateRasterizerState(&desc, &m_pRasterizerState);
+        assert(SUCCEEDED(result));
+    }
+    if (SUCCEEDED(result))
+    {
+        return result;
+    }
+    result = SetResourceName(m_pRasterizerState, "rasterizer state");
+    
     return result;
 }

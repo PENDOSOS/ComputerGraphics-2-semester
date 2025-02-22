@@ -124,3 +124,66 @@ bool Cube::initInputLayout()
     return result;
 }
 
+void Cube::render(ID3D11DeviceContext* context, UINT width, UINT height)
+{
+    D3D11_VIEWPORT viewport;
+    viewport.TopLeftX = 0;
+    viewport.TopLeftY = 0;
+    viewport.Width = (FLOAT)width;
+    viewport.Height = (FLOAT)height;
+    viewport.MinDepth = 0.0f;
+    viewport.MaxDepth = 1.0f;
+    context->RSSetViewports(1, &viewport);
+
+    D3D11_RECT rect;
+    rect.left = 0;
+    rect.top = 0;
+    rect.right = width;
+    rect.bottom = height;
+    context->RSSetScissorRects(1, &rect);
+
+    context->IASetIndexBuffer(m_pIndexBuffer, DXGI_FORMAT_R16_UINT, 0);
+    ID3D11Buffer* vertexBuffers[] = { m_pVertexBuffer };
+    UINT strides[] = { 16 };
+    UINT offsets[] = { 0 };
+    context->IASetVertexBuffers(0, 1, vertexBuffers, strides, offsets);
+    context->IASetInputLayout(m_pInputLayout);
+    context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    context->VSSetShader(m_pVertexShader, nullptr, 0);
+    context->PSSetShader(m_pPixelShader, nullptr, 0);
+    context->DrawIndexed(36, 0, 0);
+}
+
+void Cube::terminate()
+{
+    if (m_pInputLayout != nullptr)
+    {
+        m_pInputLayout->Release();
+        m_pInputLayout = nullptr;
+    }
+
+    if (m_pPixelShader != nullptr)
+    {
+        m_pPixelShader->Release();
+        m_pPixelShader = nullptr;
+    }
+
+    if (m_pVertexShader != nullptr)
+    {
+        m_pVertexShader->Release();
+        m_pVertexShader = nullptr;
+    }
+
+    if (m_pIndexBuffer != nullptr)
+    {
+        m_pIndexBuffer->Release();
+        m_pIndexBuffer = nullptr;
+    }
+
+    if (m_pVertexBuffer != nullptr)
+    {
+        m_pVertexBuffer->Release();
+        m_pVertexBuffer = nullptr;
+    }
+}
+

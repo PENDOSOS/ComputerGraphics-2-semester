@@ -20,8 +20,6 @@ public:
 	void render(ID3D11DeviceContext* context, UINT width, UINT height);
 private:
 	void terminate();
-
-	bool readFileContent(LPCTSTR filename, std::vector<char>& data);
 private:
 	ID3D11Device* m_pDevice;
 
