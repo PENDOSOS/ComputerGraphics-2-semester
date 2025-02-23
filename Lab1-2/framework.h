@@ -22,6 +22,7 @@
 
 #include <string>
 #include <vector>
+#include <chrono>
 
 enum shader_stage
 {
@@ -34,7 +35,7 @@ inline HRESULT SetResourceName(ID3D11DeviceChild* pResource, const std::string& 
     return pResource->SetPrivateData(WKPDID_D3DDebugObjectName, (UINT)name.length(), name.c_str());
 }
 
-bool readFileContent(LPCTSTR filename, std::vector<char>& data)
+inline bool readFileContent(LPCTSTR filename, std::vector<char>& data)
 {
     DWORD error = NO_ERROR;
     HANDLE hFile = CreateFile(
@@ -103,7 +104,7 @@ bool readFileContent(LPCTSTR filename, std::vector<char>& data)
     return error == NO_ERROR;
 }
 
-bool compileShader(ID3D11Device* device, LPCTSTR srcFilename, const std::vector<LPCSTR>& defines, const shader_stage& stage, ID3D11DeviceChild** ppShader, ID3DBlob** ppShaderBinary = nullptr)
+inline bool compileShader(ID3D11Device* device, LPCTSTR srcFilename, const std::vector<LPCSTR>& defines, const shader_stage& stage, ID3D11DeviceChild** ppShader, ID3DBlob** ppShaderBinary = nullptr)
 {
     std::vector<char> data;
     bool res = readFileContent(srcFilename, data);

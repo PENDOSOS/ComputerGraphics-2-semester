@@ -2,7 +2,7 @@
 
 using namespace DirectX;
 
-Cube::Cube(ID3D11Device* device)
+Cube::Cube(ID3D11Device* device) : m_pDevice(device), m_pIndexBuffer(nullptr), m_pVertexBuffer(nullptr)
 {
 	initBuffers();
 	initInputLayout();
@@ -15,20 +15,20 @@ Cube::~Cube()
 
 bool Cube::initBuffers()
 {
-    CubeVertex vertices[] =
+    CubeVertex cubeVertices[] =
     {
-        { XMFLOAT3(-1.0f, 1.0f, -1.0f), XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f) },
-        { XMFLOAT3(1.0f, 1.0f, -1.0f), XMFLOAT4(0.0f, 1.0f, 0.0f, 1.0f) },
-        { XMFLOAT3(1.0f, 1.0f, 1.0f), XMFLOAT4(0.0f, 1.0f, 1.0f, 1.0f) },
-        { XMFLOAT3(-1.0f, 1.0f, 1.0f), XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f) },
-        { XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT4(1.0f, 0.0f, 1.0f, 1.0f) },
-        { XMFLOAT3(1.0f, -1.0f, -1.0f), XMFLOAT4(1.0f, 1.0f, 0.0f, 1.0f) },
-        { XMFLOAT3(1.0f, -1.0f, 1.0f), XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f) },
-        { XMFLOAT3(-1.0f, -1.0f, 1.0f), XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f) },
+        { { -1.0f, 1.0f, -1.0f }, RGB(0, 0, 255)},
+        { { 1.0f, 1.0f, -1.0f }, RGB(0, 255, 255) },
+        { { 1.0f, 1.0f, 1.0f }, RGB(255, 255, 255) },
+        { { -1.0f, 1.0f, 1.0f }, RGB(255, 0, 255)},
+        { { -1.0f, -1.0f, -1.0f }, RGB(255, 255, 0)},
+        { { 1.0f, -1.0f, -1.0f }, RGB(0, 255, 0) },
+        { { 1.0f, -1.0f, 1.0f }, RGB(255, 0, 0) },
+        { { -1.0f, -1.0f, 1.0f }, RGB(0, 0, 0)},
     };
 
     D3D11_BUFFER_DESC vertexBufferrDesc = {};
-    vertexBufferrDesc.ByteWidth = sizeof(vertices);
+    vertexBufferrDesc.ByteWidth = sizeof(cubeVertices);
     vertexBufferrDesc.Usage = D3D11_USAGE_DEFAULT;
     vertexBufferrDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
     vertexBufferrDesc.CPUAccessFlags = 0;
@@ -36,8 +36,8 @@ bool Cube::initBuffers()
     vertexBufferrDesc.StructureByteStride = 0;
 
     D3D11_SUBRESOURCE_DATA vertexData = {};
-    vertexData.pSysMem = &vertices;
-    vertexData.SysMemPitch = sizeof(vertices);
+    vertexData.pSysMem = &cubeVertices;
+    vertexData.SysMemPitch = sizeof(cubeVertices);
     HRESULT result = m_pDevice->CreateBuffer(&vertexBufferrDesc, &vertexData, &m_pVertexBuffer);
 
     if (!SUCCEEDED(result))
@@ -124,7 +124,7 @@ bool Cube::initInputLayout()
     return result;
 }
 
-void Cube::render(ID3D11DeviceContext* context, UINT width, UINT height)
+void Cube::render(ID3D11DeviceContext* context, UINT width, UINT height, ID3D11Buffer* sceneBuffer, ID3D11Buffer* geomBuffer)
 {
     D3D11_VIEWPORT viewport;
     viewport.TopLeftX = 0;
@@ -146,10 +146,12 @@ void Cube::render(ID3D11DeviceContext* context, UINT width, UINT height)
     ID3D11Buffer* vertexBuffers[] = { m_pVertexBuffer };
     UINT strides[] = { 16 };
     UINT offsets[] = { 0 };
-    context->IASetVertexBuffers(0, 1, vertexBuffers, strides, offsets);
+    context->IASetVertexBuffers(0, 1, &m_pVertexBuffer, strides, offsets);
     context->IASetInputLayout(m_pInputLayout);
     context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     context->VSSetShader(m_pVertexShader, nullptr, 0);
+    context->VSSetConstantBuffers(0, 1, &sceneBuffer);
+    context->VSSetConstantBuffers(1, 1, &geomBuffer);
     context->PSSetShader(m_pPixelShader, nullptr, 0);
     context->DrawIndexed(36, 0, 0);
 }

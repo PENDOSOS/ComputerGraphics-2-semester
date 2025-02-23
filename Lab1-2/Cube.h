@@ -5,7 +5,7 @@
 struct CubeVertex
 {
 	DirectX::XMFLOAT3 Pos;
-	DirectX::XMFLOAT4 Color;
+	COLORREF Color;
 };
 
 class Cube
@@ -17,7 +17,7 @@ public:
 	bool initBuffers();
 	bool initInputLayout();
 
-	void render(ID3D11DeviceContext* context, UINT width, UINT height);
+	void render(ID3D11DeviceContext* context, UINT width, UINT height, ID3D11Buffer* sceneBuffer, ID3D11Buffer* geomBuffer);
 private:
 	void terminate();
 private:

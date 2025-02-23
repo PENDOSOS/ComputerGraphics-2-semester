@@ -5,6 +5,11 @@
 #pragma comment(lib, "dxgi.lib") // don't work on my computer without these libs
 #pragma comment(lib, "d3d11.lib") // uncomment if it doesn't launch
 
+using namespace DirectX;
+
+static const float rotationSpeed = PI / 6;
+static const float sensitivity = PI;
+
 bool Render::init(HWND window)
 {
     HRESULT result;
@@ -81,14 +86,6 @@ bool Render::init(HWND window)
         result = setupBackBuffer();
     }
 
-    if (SUCCEEDED(result))
-    {
-        m_pCamera->poi = { 0,0,0 };
-        m_pCamera->r = 5.0f;
-        m_pCamera->phi = -(float)PI / 4;
-        m_pCamera->theta = (float)PI / 4;
-    }
-
     if (pSelectedAdapter != nullptr)
     {
         pSelectedAdapter->Release();
@@ -101,7 +98,13 @@ bool Render::init(HWND window)
         pFactory = nullptr;
     }
 
-    m_pTriangle = new Triangle(m_pDevice);
+    result = initScene();
+    if (!SUCCEEDED(result))
+        return result;
+
+    //m_pTriangle = new Triangle(m_pDevice);
+    m_pCamera = new Camera;
+    m_pCube = new Cube(m_pDevice);
 
     return SUCCEEDED(result);
 }
@@ -109,8 +112,9 @@ bool Render::init(HWND window)
 void Render::terminate()
 {
     delete m_pCamera;
-    delete m_pTriangle;
-
+    //delete m_pTriangle;
+    delete m_pCube;
+    
     if (m_pGeomBuffer != nullptr)
     {
         m_pGeomBuffer->Release();
@@ -121,6 +125,12 @@ void Render::terminate()
     {
         m_pSceneBuffer->Release();
         m_pSceneBuffer = nullptr;
+    }
+    
+    if (m_pRasterizerState != nullptr)
+    {
+        m_pRasterizerState->Release();
+        m_pRasterizerState = nullptr;
     }
 
     if (m_pBackBufferRTV != nullptr)
@@ -159,7 +169,8 @@ bool Render::render()
     static const FLOAT BackColor[4] = { 0.25f, 0.25f, 0.25f, 1.0f };
     m_pDeviceContext->ClearRenderTargetView(m_pBackBufferRTV, BackColor);
 
-    m_pTriangle->render(m_pDeviceContext, m_width, m_height);
+    //m_pTriangle->render(m_pDeviceContext, m_width, m_height);
+    m_pCube->render(m_pDeviceContext, m_width, m_height, m_pSceneBuffer, m_pGeomBuffer);
 
     HRESULT result = m_pSwapChain->Present(0, 0);
     assert(SUCCEEDED(result));
@@ -192,6 +203,101 @@ bool Render::resize(UINT width, UINT height)
     }
 
     return true;
+}
+
+bool Render::update()
+{
+    size_t usec = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+    if (m_prevSec == 0)
+    {
+        m_prevSec = usec; // Initial update
+    }
+
+    double deltaSec = (usec - m_prevSec) / 1000000.0;
+    m_angle = m_angle + deltaSec * rotationSpeed;
+
+    GeomBuffer geomBuffer;
+
+    // Model matrix
+    // Angle is reversed, as DirectXMath calculates it as clockwise
+    DirectX::XMMATRIX m = DirectX::XMMatrixRotationAxis(DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 1.0f), -(float)m_angle);
+
+    geomBuffer.M = m;
+
+    m_pDeviceContext->UpdateSubresource(m_pGeomBuffer, 0, nullptr, &geomBuffer, 0, 0);
+
+    m_prevSec = usec;
+
+    // Setup camera
+    DirectX::XMMATRIX v;
+    {
+        DirectX::XMFLOAT3 pos = m_pCamera->poi;
+        DirectX::XMFLOAT3 temp = DirectX::XMFLOAT3{ cosf(m_pCamera->theta) * cosf(m_pCamera->phi), sinf(m_pCamera->theta), cosf(m_pCamera->theta) * sinf(m_pCamera->phi) };
+        DirectX::XMVECTOR vector = XMLoadFloat3(&temp);
+        vector = XMVectorScale(vector, m_pCamera->r);
+        DirectX::XMVECTOR posVector = XMLoadFloat3(&pos);
+        posVector = XMVectorAdd(posVector, vector);
+        XMStoreFloat3(&pos, posVector);
+        float upTheta = m_pCamera->theta + (float)PI / 2;
+        DirectX::XMFLOAT3 up = DirectX::XMFLOAT3{ cosf(upTheta) * cosf(m_pCamera->phi), sinf(upTheta), cosf(upTheta) * sinf(m_pCamera->phi) };
+
+        v = DirectX::XMMatrixLookAtLH(
+            DirectX::XMVectorSet(pos.x, pos.y, pos.z, 0.0f),
+            DirectX::XMVectorSet(m_pCamera->poi.x, m_pCamera->poi.y, m_pCamera->poi.z, 0.0f),
+            DirectX::XMVectorSet(up.x, up.y, up.z, 0.0f)
+        );
+    }
+
+    float f = 100.0f;
+    float n = 0.1f;
+    float fov = (float)PI / 3;
+    float c = 1.0f / tanf(fov / 2);
+    float aspectRatio = (float)m_height / m_width;
+    DirectX::XMMATRIX p = DirectX::XMMatrixPerspectiveLH(tanf(fov / 2) * 2 * n, tanf(fov / 2) * 2 * n * aspectRatio, n, f);
+
+    D3D11_MAPPED_SUBRESOURCE subresource;
+    HRESULT result = m_pDeviceContext->Map(m_pSceneBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &subresource);
+    assert(SUCCEEDED(result));
+    if (SUCCEEDED(result))
+    {
+        SceneBuffer& sceneBuffer = *reinterpret_cast<SceneBuffer*>(subresource.pData);
+
+        sceneBuffer.VP = DirectX::XMMatrixMultiply(v, p);
+
+        m_pDeviceContext->Unmap(m_pSceneBuffer, 0);
+    }
+
+    return SUCCEEDED(result);
+}
+
+void Render::mouseLeftButton(bool pressed, int posX, int posY)
+{
+    m_isButtonPressed = pressed;
+    if (m_isButtonPressed)
+    {
+        m_mousePosX = posX;
+        m_mousePosY = posY;
+    }
+}
+
+void Render::mouseMove(int posX, int posY)
+{
+    if (m_isButtonPressed)
+    {
+        float dx = -(float)(posX - m_mousePosX) / m_width * sensitivity;
+        float dy = (float)(posY - m_mousePosY) / m_width * sensitivity;
+
+        m_pCamera->phi += dx;
+        m_pCamera->theta += dy;
+
+        if (m_pCamera->theta > PI / 2)
+            m_pCamera->theta = PI / 2;
+        if (m_pCamera->theta < -PI / 2)
+            m_pCamera->theta = -PI / 2;
+
+        m_mousePosX = posX;
+        m_mousePosY = posY;
+    }
 }
 
 HRESULT Render::setupBackBuffer()
