@@ -5,6 +5,8 @@
 #include "Window.h"
 #include "Render.h"
 
+#include <windowsx.h>
+
 #define MAX_LOADSTRING 100
 
 // Глобальные переменные:
@@ -66,7 +68,10 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
             }
         }
 
-        pRender->render();
+        if (pRender->update())
+        {
+            pRender->render();
+        }
     }
 
     delete pRender;
@@ -187,6 +192,24 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             default:
                 return DefWindowProc(hWnd, message, wParam, lParam);
             }
+        }
+        break;
+    case WM_LBUTTONDOWN:
+        if (pRender != nullptr)
+        {
+            pRender->mouseLeftButton(true, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+        }
+        break;
+    case WM_LBUTTONUP:
+        if (pRender != nullptr)
+        {
+            pRender->mouseLeftButton(false, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+        }
+        break;
+    case WM_MOUSEMOVE:
+        if (pRender != nullptr)
+        {
+            pRender->mouseMove(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
         }
         break;
     case WM_DESTROY:

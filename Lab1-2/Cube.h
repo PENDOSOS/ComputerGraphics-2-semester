@@ -1,29 +1,25 @@
-﻿#pragma once
-
-#include <set>
+#pragma once
 
 #include "framework.h"
 
-struct triangleVertex
+struct CubeVertex
 {
-	float x, y, z;
-	COLORREF color;
+	DirectX::XMFLOAT3 Pos;
+	COLORREF Color;
 };
 
-class Triangle
+class Cube
 {
 public:
-	Triangle(ID3D11Device* device);
-	~Triangle();
-	
+	Cube(ID3D11Device* device);
+	~Cube();
+
 	bool initBuffers();
 	bool initInputLayout();
 
-	void render(ID3D11DeviceContext* context, UINT width, UINT height);
-
+	void render(ID3D11DeviceContext* context, UINT width, UINT height, ID3D11Buffer* sceneBuffer, ID3D11Buffer* geomBuffer);
 private:
 	void terminate();
-
 private:
 	ID3D11Device* m_pDevice;
 
