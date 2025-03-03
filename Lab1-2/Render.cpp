@@ -108,7 +108,8 @@ bool Render::init(HWND window)
 
     //m_pTriangle = new Triangle(m_pDevice);
     m_pCamera = new Camera;
-    m_pCube = new Cube(m_pDevice);
+    //m_pCube = new Cube(m_pDevice);
+    m_pCube = new TexturedCube(m_pDevice);
     m_pSkybox = new Skybox(m_pDevice);
 
     return SUCCEEDED(result);
@@ -181,9 +182,25 @@ bool Render::render()
     static const FLOAT BackColor[4] = { 0.25f, 0.25f, 0.25f, 1.0f };
     m_pDeviceContext->ClearRenderTargetView(m_pBackBufferRTV, BackColor);
 
+    D3D11_VIEWPORT viewport;
+    viewport.TopLeftX = 0;
+    viewport.TopLeftY = 0;
+    viewport.Width = (FLOAT)m_width;
+    viewport.Height = (FLOAT)m_height;
+    viewport.MinDepth = 0.0f;
+    viewport.MaxDepth = 1.0f;
+    m_pDeviceContext->RSSetViewports(1, &viewport);
+
+    D3D11_RECT rect;
+    rect.left = 0;
+    rect.top = 0;
+    rect.right = m_width;
+    rect.bottom = m_height;
+    m_pDeviceContext->RSSetScissorRects(1, &rect);
+
     //m_pTriangle->render(m_pDeviceContext, m_width, m_height);
     m_pSkybox->render(m_pDeviceContext, m_width, m_height, m_pSceneBuffer, m_pSamplerState);
-    m_pCube->render(m_pDeviceContext, m_width, m_height, m_pSceneBuffer, m_pGeomBuffer);
+    m_pCube->render(m_pDeviceContext, m_pSceneBuffer, m_pGeomBuffer, m_pSamplerState);
 
     HRESULT result = m_pSwapChain->Present(0, 0);
     assert(SUCCEEDED(result));
@@ -317,6 +334,15 @@ void Render::mouseMove(int posX, int posY)
     }
 }
 
+void Render::mouseWheel(int delta)
+{
+    m_pCamera->r -= delta / 100.0f;
+    if (m_pCamera->r < 1.0f)
+    {
+        m_pCamera->r = 1.0f;
+    }
+}
+
 HRESULT Render::setupBackBuffer()
 {
     ID3D11Texture2D* pBackBuffer = NULL;
@@ -410,15 +436,15 @@ HRESULT Render::initSamplers()
 {
     D3D11_SAMPLER_DESC samplerDesc = {};
     samplerDesc.Filter = D3D11_FILTER_ANISOTROPIC;
-    samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
-    samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
-    samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
-    samplerDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
+    samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;//D3D11_TEXTURE_ADDRESS_WRAP;
+    samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;//D3D11_TEXTURE_ADDRESS_WRAP;
+    samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;//D3D11_TEXTURE_ADDRESS_WRAP;
     samplerDesc.MinLOD = -FLT_MAX;
     samplerDesc.MaxLOD = FLT_MAX;
     samplerDesc.MipLODBias = 0.0f;
     samplerDesc.MaxAnisotropy = 16;
     samplerDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
+    samplerDesc.BorderColor[0] = samplerDesc.BorderColor[1] = samplerDesc.BorderColor[2] = samplerDesc.BorderColor[3] = 1.0f;
 
     HRESULT result = m_pDevice->CreateSamplerState(&samplerDesc, &m_pSamplerState);
 

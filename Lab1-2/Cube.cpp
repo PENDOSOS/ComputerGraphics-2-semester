@@ -127,22 +127,6 @@ bool Cube::initInputLayout()
 
 void Cube::render(ID3D11DeviceContext* context, UINT width, UINT height, ID3D11Buffer* sceneBuffer, ID3D11Buffer* geomBuffer)
 {
-    D3D11_VIEWPORT viewport;
-    viewport.TopLeftX = 0;
-    viewport.TopLeftY = 0;
-    viewport.Width = (FLOAT)width;
-    viewport.Height = (FLOAT)height;
-    viewport.MinDepth = 0.0f;
-    viewport.MaxDepth = 1.0f;
-    context->RSSetViewports(1, &viewport);
-
-    D3D11_RECT rect;
-    rect.left = 0;
-    rect.top = 0;
-    rect.right = width;
-    rect.bottom = height;
-    context->RSSetScissorRects(1, &rect);
-
     context->IASetIndexBuffer(m_pIndexBuffer, DXGI_FORMAT_R16_UINT, 0);
     ID3D11Buffer* vertexBuffers[] = { m_pVertexBuffer };
     UINT strides[] = { 16 };

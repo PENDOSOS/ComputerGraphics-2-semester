@@ -45,6 +45,9 @@
     <ClInclude Include="Skybox.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
+    <ClInclude Include="TexturedCube.h">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Window.cpp">
@@ -63,6 +66,9 @@
       <Filter>thirdparty</Filter>
     </ClCompile>
     <ClCompile Include="Skybox.cpp">
+      <Filter>Исходные файлы</Filter>
+    </ClCompile>
+    <ClCompile Include="TexturedCube.cpp">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
   </ItemGroup>

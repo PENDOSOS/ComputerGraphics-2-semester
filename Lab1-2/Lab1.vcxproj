@@ -144,6 +144,7 @@
     <ClInclude Include="framework.h" />
     <ClInclude Include="Render.h" />
     <ClInclude Include="Skybox.h" />
+    <ClInclude Include="TexturedCube.h" />
     <ClInclude Include="thirdparty\DDSTextureLoader11.h" />
     <ClInclude Include="Triangle.h" />
     <ClInclude Include="Window.h" />
@@ -154,6 +155,7 @@
     <ClCompile Include="Cube.cpp" />
     <ClCompile Include="Render.cpp" />
     <ClCompile Include="Skybox.cpp" />
+    <ClCompile Include="TexturedCube.cpp" />
     <ClCompile Include="thirdparty\DDSTextureLoader11.cpp" />
     <ClCompile Include="Triangle.cpp" />
     <ClCompile Include="Window.cpp" />

@@ -29,22 +29,6 @@ void Skybox::render(ID3D11DeviceContext* context, UINT width, UINT height, ID3D1
 {
     if (m_pCubemapView) 
     {
-        D3D11_VIEWPORT viewport;
-        viewport.TopLeftX = 0;
-        viewport.TopLeftY = 0;
-        viewport.Width = (FLOAT)width;
-        viewport.Height = (FLOAT)height;
-        viewport.MinDepth = 0.0f;
-        viewport.MaxDepth = 1.0f;
-        context->RSSetViewports(1, &viewport);
-
-        D3D11_RECT rect;
-        rect.left = 0;
-        rect.top = 0;
-        rect.right = width;
-        rect.bottom = height;
-        context->RSSetScissorRects(1, &rect);
-
         UINT stride = { 12 };
         UINT offset = { 0 };
 
