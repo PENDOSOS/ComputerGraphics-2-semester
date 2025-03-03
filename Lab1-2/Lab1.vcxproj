@@ -117,7 +117,7 @@
       <EntryPointName>main</EntryPointName>
     </FxCompile>
     <PreBuildEvent>
-      <Command>xcopy "$(ProjectDir)\shaders" "$(SolutionDir)\x64\Debug\shaders" /e /i /y</Command>
+      <Command>xcopy "$(ProjectDir)\resources" "$(SolutionDir)\x64\Debug\resources" /e /i /y</Command>
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -136,13 +136,15 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <PreBuildEvent>
-      <Command>xcopy "$(ProjectDir)\shaders" "$(SolutionDir)\x64\Release\shaders" /e /i /y</Command>
+      <Command>xcopy "$(ProjectDir)\resources" "$(SolutionDir)\x64\Debug\resources" /e /i /y</Command>
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="Cube.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="Render.h" />
+    <ClInclude Include="Skybox.h" />
+    <ClInclude Include="thirdparty\DDSTextureLoader11.h" />
     <ClInclude Include="Triangle.h" />
     <ClInclude Include="Window.h" />
     <ClInclude Include="Resource.h" />
@@ -151,6 +153,8 @@
   <ItemGroup>
     <ClCompile Include="Cube.cpp" />
     <ClCompile Include="Render.cpp" />
+    <ClCompile Include="Skybox.cpp" />
+    <ClCompile Include="thirdparty\DDSTextureLoader11.cpp" />
     <ClCompile Include="Triangle.cpp" />
     <ClCompile Include="Window.cpp" />
   </ItemGroup>

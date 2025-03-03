@@ -2,12 +2,14 @@
 
 #include "Triangle.h"
 #include "Cube.h"
+#include "Skybox.h"
 
 #define PI 3.14159265358979323846
 
 struct SceneBuffer
 {
     DirectX::XMMATRIX VP;
+    DirectX::XMFLOAT3 CameraPos;
 };
 
 struct GeomBuffer
@@ -18,7 +20,7 @@ struct GeomBuffer
 struct Camera
 {
     DirectX::XMFLOAT3 poi = {0, 0, 0};
-    float r = 7.0f;        // Distance to POI
+    float r = 11.0f;        // Distance to POI
     float phi = -(float)PI / 4;      // Angle in plane x0z
     float theta = (float)PI / 4;    // Angle from plane x0z
 };
@@ -43,6 +45,8 @@ public:
         , m_mousePosX(0)
         , m_mousePosY(0)
         , m_isButtonPressed(false)
+        , m_pSamplerState(nullptr)
+        , m_pSkybox(nullptr)
     {}
 
     ~Render() { terminate(); }
@@ -62,6 +66,7 @@ private:
 
     HRESULT setupBackBuffer();
     HRESULT initScene();
+    HRESULT initSamplers();
 
 private:
     ID3D11Device* m_pDevice;
@@ -75,11 +80,14 @@ private:
     ID3D11Buffer* m_pSceneBuffer;
     ID3D11Buffer* m_pGeomBuffer;
 
+    ID3D11SamplerState* m_pSamplerState;
+
     UINT m_width;
     UINT m_height;
 
     //Triangle* m_pTriangle;
     Cube* m_pCube;
+    Skybox* m_pSkybox;
 
     Camera* m_pCamera;
     double m_angle = 0;
