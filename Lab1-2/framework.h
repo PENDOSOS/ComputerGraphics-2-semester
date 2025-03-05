@@ -23,6 +23,7 @@
 #include <string>
 #include <vector>
 #include <chrono>
+#include "thirdparty/DDSTextureLoader11.h"
 
 enum shader_stage
 {

@@ -212,6 +212,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             pRender->mouseMove(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
         }
         break;
+    case WM_MOUSEWHEEL:
+        if (pRender != nullptr)
+        {
+            pRender->mouseWheel(GET_WHEEL_DELTA_WPARAM(wParam));
+        }
+        break;
     case WM_DESTROY:
         PostQuitMessage(0);
         break;

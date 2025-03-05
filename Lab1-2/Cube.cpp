@@ -29,7 +29,7 @@ bool Cube::initBuffers()
 
     D3D11_BUFFER_DESC vertexBufferrDesc = {};
     vertexBufferrDesc.ByteWidth = sizeof(cubeVertices);
-    vertexBufferrDesc.Usage = D3D11_USAGE_DEFAULT;
+    vertexBufferrDesc.Usage = D3D11_USAGE_IMMUTABLE;//D3D11_USAGE_DEFAULT;
     vertexBufferrDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
     vertexBufferrDesc.CPUAccessFlags = 0;
     vertexBufferrDesc.MiscFlags = 0;
@@ -89,7 +89,8 @@ bool Cube::initBuffers()
 
 bool Cube::initInputLayout()
 {
-    D3D11_INPUT_ELEMENT_DESC inputDesc[] = {
+    D3D11_INPUT_ELEMENT_DESC inputDesc[] = 
+    {
         {"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
         {"COLOR", 0, DXGI_FORMAT_R8G8B8A8_UNORM, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0}
     };
@@ -99,11 +100,11 @@ bool Cube::initInputLayout()
     ID3DBlob* pVertexShaderCode = nullptr;
     if (SUCCEEDED(result))
     {
-        result = compileShader(m_pDevice, L"shaders/cube_vs.hlsl", {}, shader_stage::Vertex, (ID3D11DeviceChild**)&m_pVertexShader, &pVertexShaderCode);
+        result = compileShader(m_pDevice, L"resources/shaders/cube_vs.hlsl", {}, shader_stage::Vertex, (ID3D11DeviceChild**)&m_pVertexShader, &pVertexShaderCode);
     }
     if (SUCCEEDED(result))
     {
-        result = compileShader(m_pDevice, L"shaders/cube_ps.hlsl", {}, shader_stage::Pixel, (ID3D11DeviceChild**)&m_pPixelShader);
+        result = compileShader(m_pDevice, L"resources/shaders/cube_ps.hlsl", {}, shader_stage::Pixel, (ID3D11DeviceChild**)&m_pPixelShader);
     }
 
     if (SUCCEEDED(result))
@@ -126,22 +127,6 @@ bool Cube::initInputLayout()
 
 void Cube::render(ID3D11DeviceContext* context, UINT width, UINT height, ID3D11Buffer* sceneBuffer, ID3D11Buffer* geomBuffer)
 {
-    D3D11_VIEWPORT viewport;
-    viewport.TopLeftX = 0;
-    viewport.TopLeftY = 0;
-    viewport.Width = (FLOAT)width;
-    viewport.Height = (FLOAT)height;
-    viewport.MinDepth = 0.0f;
-    viewport.MaxDepth = 1.0f;
-    context->RSSetViewports(1, &viewport);
-
-    D3D11_RECT rect;
-    rect.left = 0;
-    rect.top = 0;
-    rect.right = width;
-    rect.bottom = height;
-    context->RSSetScissorRects(1, &rect);
-
     context->IASetIndexBuffer(m_pIndexBuffer, DXGI_FORMAT_R16_UINT, 0);
     ID3D11Buffer* vertexBuffers[] = { m_pVertexBuffer };
     UINT strides[] = { 16 };

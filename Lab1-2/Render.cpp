@@ -102,9 +102,15 @@ bool Render::init(HWND window)
     if (!SUCCEEDED(result))
         return result;
 
+    result = initSamplers();
+    if (!SUCCEEDED(result))
+        return result;
+
     //m_pTriangle = new Triangle(m_pDevice);
     m_pCamera = new Camera;
-    m_pCube = new Cube(m_pDevice);
+    //m_pCube = new Cube(m_pDevice);
+    m_pCube = new TexturedCube(m_pDevice);
+    m_pSkybox = new Skybox(m_pDevice);
 
     return SUCCEEDED(result);
 }
@@ -114,7 +120,14 @@ void Render::terminate()
     delete m_pCamera;
     //delete m_pTriangle;
     delete m_pCube;
+    delete m_pSkybox;
     
+    if (m_pSamplerState != nullptr)
+    {
+        m_pSamplerState->Release();
+        m_pSamplerState = nullptr;
+    }
+
     if (m_pGeomBuffer != nullptr)
     {
         m_pGeomBuffer->Release();
@@ -169,8 +182,25 @@ bool Render::render()
     static const FLOAT BackColor[4] = { 0.25f, 0.25f, 0.25f, 1.0f };
     m_pDeviceContext->ClearRenderTargetView(m_pBackBufferRTV, BackColor);
 
+    D3D11_VIEWPORT viewport;
+    viewport.TopLeftX = 0;
+    viewport.TopLeftY = 0;
+    viewport.Width = (FLOAT)m_width;
+    viewport.Height = (FLOAT)m_height;
+    viewport.MinDepth = 0.0f;
+    viewport.MaxDepth = 1.0f;
+    m_pDeviceContext->RSSetViewports(1, &viewport);
+
+    D3D11_RECT rect;
+    rect.left = 0;
+    rect.top = 0;
+    rect.right = m_width;
+    rect.bottom = m_height;
+    m_pDeviceContext->RSSetScissorRects(1, &rect);
+
     //m_pTriangle->render(m_pDeviceContext, m_width, m_height);
-    m_pCube->render(m_pDeviceContext, m_width, m_height, m_pSceneBuffer, m_pGeomBuffer);
+    m_pSkybox->render(m_pDeviceContext, m_width, m_height, m_pSceneBuffer, m_pSamplerState);
+    m_pCube->render(m_pDeviceContext, m_pSceneBuffer, m_pGeomBuffer, m_pSamplerState);
 
     HRESULT result = m_pSwapChain->Present(0, 0);
     assert(SUCCEEDED(result));
@@ -229,6 +259,7 @@ bool Render::update()
     m_prevSec = usec;
 
     // Setup camera
+    DirectX::XMFLOAT3 cameraPos;
     DirectX::XMMATRIX v;
     {
         DirectX::XMFLOAT3 pos = m_pCamera->poi;
@@ -246,6 +277,8 @@ bool Render::update()
             DirectX::XMVectorSet(m_pCamera->poi.x, m_pCamera->poi.y, m_pCamera->poi.z, 0.0f),
             DirectX::XMVectorSet(up.x, up.y, up.z, 0.0f)
         );
+
+        XMStoreFloat3(&cameraPos, posVector);
     }
 
     float f = 100.0f;
@@ -263,6 +296,7 @@ bool Render::update()
         SceneBuffer& sceneBuffer = *reinterpret_cast<SceneBuffer*>(subresource.pData);
 
         sceneBuffer.VP = DirectX::XMMatrixMultiply(v, p);
+        sceneBuffer.CameraPos = cameraPos;
 
         m_pDeviceContext->Unmap(m_pSceneBuffer, 0);
     }
@@ -297,6 +331,15 @@ void Render::mouseMove(int posX, int posY)
 
         m_mousePosX = posX;
         m_mousePosY = posY;
+    }
+}
+
+void Render::mouseWheel(int delta)
+{
+    m_pCamera->r -= delta / 100.0f;
+    if (m_pCamera->r < 1.0f)
+    {
+        m_pCamera->r = 1.0f;
     }
 }
 
@@ -382,9 +425,33 @@ HRESULT Render::initScene()
     }
     if (SUCCEEDED(result))
     {
+        result = SetResourceName(m_pRasterizerState, "rasterizer state");
         return result;
     }
-    result = SetResourceName(m_pRasterizerState, "rasterizer state");
     
+    return result;
+}
+
+HRESULT Render::initSamplers()
+{
+    D3D11_SAMPLER_DESC samplerDesc = {};
+    samplerDesc.Filter = D3D11_FILTER_ANISOTROPIC;
+    samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;//D3D11_TEXTURE_ADDRESS_WRAP;
+    samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;//D3D11_TEXTURE_ADDRESS_WRAP;
+    samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;//D3D11_TEXTURE_ADDRESS_WRAP;
+    samplerDesc.MinLOD = -FLT_MAX;
+    samplerDesc.MaxLOD = FLT_MAX;
+    samplerDesc.MipLODBias = 0.0f;
+    samplerDesc.MaxAnisotropy = 16;
+    samplerDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
+    samplerDesc.BorderColor[0] = samplerDesc.BorderColor[1] = samplerDesc.BorderColor[2] = samplerDesc.BorderColor[3] = 1.0f;
+
+    HRESULT result = m_pDevice->CreateSamplerState(&samplerDesc, &m_pSamplerState);
+
+    if (SUCCEEDED(result))
+    {
+        result = SetResourceName(m_pSamplerState, "sampler state");
+    }
+
     return result;
 }
