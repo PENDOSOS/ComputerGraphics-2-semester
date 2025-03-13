@@ -4,6 +4,7 @@
 //#include "Cube.h"
 #include "TexturedCube.h"
 #include "Skybox.h"
+#include "TransparentRect.h"
 
 #define PI 3.14159265358979323846
 
@@ -54,6 +55,7 @@ public:
         , m_pDepthBufferDSV(nullptr)
         , m_pGeomBuffer2(nullptr)
         , m_pDepthState(nullptr)
+        , m_pRect1(nullptr)
     {}
 
     ~Render() { terminate(); }
@@ -104,6 +106,7 @@ private:
     TexturedCube* m_pCube;
     TexturedCube* m_pCube2;
     Skybox* m_pSkybox;
+    TransparentRect* m_pRect1;
 
     Camera* m_pCamera;
     double m_angle = 0;

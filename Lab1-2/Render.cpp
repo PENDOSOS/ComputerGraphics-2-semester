@@ -116,6 +116,7 @@ bool Render::init(HWND window)
     m_pCube = new TexturedCube(m_pDevice);
     m_pCube2 = new TexturedCube(m_pDevice);
     m_pSkybox = new Skybox(m_pDevice);
+    m_pRect1 = new TransparentRect(m_pDevice);
 
     return SUCCEEDED(result);
 }
@@ -127,6 +128,7 @@ void Render::terminate()
     delete m_pCube;
     delete m_pCube2;
     delete m_pSkybox;
+    delete m_pRect1;
     
     if (m_pSamplerState != nullptr)
     {
@@ -237,6 +239,8 @@ bool Render::render()
 
     m_pCube->render(m_pDeviceContext, m_pSceneBuffer, m_pGeomBuffer, m_pSamplerState);
     m_pCube2->render(m_pDeviceContext, m_pSceneBuffer, m_pGeomBuffer2, m_pSamplerState);
+
+    m_pRect1->render(m_pDeviceContext, m_pSceneBuffer);
 
     HRESULT result = m_pSwapChain->Present(0, 0);
     assert(SUCCEEDED(result));
@@ -502,7 +506,7 @@ HRESULT Render::initScene()
     {
         return result;
     }
-    result = SetResourceName(m_pRasterizerState, "depth state");
+    result = SetResourceName(m_pDepthState, "depth state");
 
     return result;
 }

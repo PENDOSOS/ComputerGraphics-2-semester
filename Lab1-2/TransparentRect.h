@@ -2,24 +2,25 @@
 
 #include "framework.h"
 
-struct CubeVertex
+struct RectVertex 
 {
 	DirectX::XMFLOAT3 Pos;
 	COLORREF Color;
 };
 
-class Cube
+class TransparentRect
 {
 public:
-	Cube(ID3D11Device* device);
-	~Cube();
-	
-	void render(ID3D11DeviceContext* context, UINT width, UINT height, ID3D11Buffer* sceneBuffer, ID3D11Buffer* geomBuffer);
+	TransparentRect(ID3D11Device* device);
+	~TransparentRect();
+
+	void render(ID3D11DeviceContext* context, ID3D11Buffer* sceneBuffer);
 private:
 	bool initBuffers();
 	bool initInputLayout();
 
 	void terminate();
+
 private:
 	ID3D11Device* m_pDevice;
 
@@ -29,5 +30,7 @@ private:
 	ID3D11PixelShader* m_pPixelShader;
 	ID3D11VertexShader* m_pVertexShader;
 	ID3D11InputLayout* m_pInputLayout;
+
+	ID3D11Buffer* m_pGeomBuffer;
 };
 
