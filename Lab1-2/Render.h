@@ -49,6 +49,11 @@ public:
         , m_pSamplerState(nullptr)
         , m_pSkybox(nullptr)
         , m_pCube2(nullptr)
+        , m_pRasterizerState(nullptr)
+        , m_pDepthBuffer(nullptr)
+        , m_pDepthBufferDSV(nullptr)
+        , m_pGeomBuffer2(nullptr)
+        , m_pDepthState(nullptr)
     {}
 
     ~Render() { terminate(); }
@@ -70,6 +75,7 @@ private:
     HRESULT setupBackBuffer();
     HRESULT initScene();
     HRESULT initSamplers();
+    HRESULT initDepthStencil();
 
 private:
     ID3D11Device* m_pDevice;
@@ -79,6 +85,10 @@ private:
     ID3D11RenderTargetView* m_pBackBufferRTV;
 
     ID3D11RasterizerState* m_pRasterizerState;
+
+    ID3D11Texture2D* m_pDepthBuffer;
+    ID3D11DepthStencilView* m_pDepthBufferDSV;
+    ID3D11DepthStencilState* m_pDepthState;
 
     ID3D11Buffer* m_pSceneBuffer;
     ID3D11Buffer* m_pGeomBuffer;

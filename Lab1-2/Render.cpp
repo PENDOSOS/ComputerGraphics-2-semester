@@ -106,6 +106,10 @@ bool Render::init(HWND window)
     if (!SUCCEEDED(result))
         return result;
 
+    result = initDepthStencil();
+    if (!SUCCEEDED(result))
+        return result;
+
     //m_pTriangle = new Triangle(m_pDevice);
     m_pCamera = new Camera;
     //m_pCube = new Cube(m_pDevice);
@@ -147,6 +151,24 @@ void Render::terminate()
         m_pSceneBuffer->Release();
         m_pSceneBuffer = nullptr;
     }
+
+    if (m_pDepthState != nullptr)
+    {
+        m_pDepthState->Release();
+        m_pDepthState = nullptr;
+    }
+
+    if (m_pDepthBufferDSV != nullptr)
+    {
+        m_pDepthBufferDSV->Release();
+        m_pDepthBufferDSV = nullptr;
+    }
+
+    if (m_pDepthBuffer != nullptr)
+    {
+        m_pDepthBuffer->Release();
+        m_pDepthBuffer = nullptr;
+    }
     
     if (m_pRasterizerState != nullptr)
     {
@@ -185,10 +207,11 @@ bool Render::render()
     m_pDeviceContext->ClearState();
 
     ID3D11RenderTargetView* views[] = { m_pBackBufferRTV };
-    m_pDeviceContext->OMSetRenderTargets(1, views, nullptr);
+    m_pDeviceContext->OMSetRenderTargets(1, views, m_pDepthBufferDSV);
 
     static const FLOAT BackColor[4] = { 0.25f, 0.25f, 0.25f, 1.0f };
     m_pDeviceContext->ClearRenderTargetView(m_pBackBufferRTV, BackColor);
+    m_pDeviceContext->ClearDepthStencilView(m_pDepthBufferDSV, D3D11_CLEAR_DEPTH, 1.0f, 0);
 
     D3D11_VIEWPORT viewport;
     viewport.TopLeftX = 0;
@@ -205,9 +228,13 @@ bool Render::render()
     rect.right = m_width;
     rect.bottom = m_height;
     m_pDeviceContext->RSSetScissorRects(1, &rect);
+    m_pDeviceContext->RSSetState(m_pRasterizerState);
 
     //m_pTriangle->render(m_pDeviceContext, m_width, m_height);
     m_pSkybox->render(m_pDeviceContext, m_width, m_height, m_pSceneBuffer, m_pSamplerState);
+
+    m_pDeviceContext->OMSetDepthStencilState(m_pDepthState, 0);
+
     m_pCube->render(m_pDeviceContext, m_pSceneBuffer, m_pGeomBuffer, m_pSamplerState);
     m_pCube2->render(m_pDeviceContext, m_pSceneBuffer, m_pGeomBuffer2, m_pSamplerState);
 
@@ -227,6 +254,18 @@ bool Render::resize(UINT width, UINT height)
             m_pBackBufferRTV = nullptr;
         }
 
+        if (m_pDepthBuffer != nullptr)
+        {
+            m_pDepthBuffer->Release();
+            m_pDepthBuffer = nullptr;
+        }
+
+        if (m_pDepthBufferDSV != nullptr)
+        {
+            m_pDepthBufferDSV->Release();
+            m_pDepthBufferDSV = nullptr;
+        }
+
         HRESULT result = m_pSwapChain->ResizeBuffers(2, width, height, DXGI_FORMAT_R8G8B8A8_UNORM, 0);
         assert(SUCCEEDED(result));
 
@@ -236,6 +275,7 @@ bool Render::resize(UINT width, UINT height)
             m_height = height;
 
             result = setupBackBuffer();
+            result = initDepthStencil();
         }
 
         return SUCCEEDED(result);
@@ -425,12 +465,12 @@ HRESULT Render::initScene()
     {
         return result;
     }
-    result = SetResourceName(m_pGeomBuffer, "geom buffer 2");
+    result = SetResourceName(m_pGeomBuffer2, "geom buffer 2");
 
     if (SUCCEEDED(result))
     {
         D3D11_RASTERIZER_DESC desc = {};
-        desc.AntialiasedLineEnable = FALSE;
+        desc.AntialiasedLineEnable = TRUE;
         desc.FillMode = D3D11_FILL_SOLID;
         desc.CullMode = D3D11_CULL_NONE;
         desc.FrontCounterClockwise = FALSE;
@@ -444,12 +484,26 @@ HRESULT Render::initScene()
         result = m_pDevice->CreateRasterizerState(&desc, &m_pRasterizerState);
         assert(SUCCEEDED(result));
     }
-    if (SUCCEEDED(result))
+
+    if (!SUCCEEDED(result))
     {
-        result = SetResourceName(m_pRasterizerState, "rasterizer state");
         return result;
     }
+    result = SetResourceName(m_pRasterizerState, "rasterizer state");
     
+    D3D11_DEPTH_STENCIL_DESC depthDesc = {};
+    depthDesc.DepthEnable = TRUE;
+    depthDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
+    depthDesc.DepthFunc = D3D11_COMPARISON_LESS_EQUAL;
+    depthDesc.StencilEnable = FALSE;
+
+    result = m_pDevice->CreateDepthStencilState(&depthDesc, &m_pDepthState);
+    if (!SUCCEEDED(result))
+    {
+        return result;
+    }
+    result = SetResourceName(m_pRasterizerState, "depth state");
+
     return result;
 }
 
@@ -473,6 +527,42 @@ HRESULT Render::initSamplers()
     {
         result = SetResourceName(m_pSamplerState, "sampler state");
     }
+
+    return result;
+}
+
+HRESULT Render::initDepthStencil()
+{
+    D3D11_TEXTURE2D_DESC desc = {};
+    desc.Format = DXGI_FORMAT_D32_FLOAT;
+    desc.ArraySize = 1;
+    desc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
+    desc.CPUAccessFlags = 0;
+    desc.MiscFlags = 0;
+    desc.SampleDesc.Count = 1;
+    desc.SampleDesc.Quality = 0;
+    desc.Usage = D3D11_USAGE_DEFAULT;
+    desc.Height = m_height;
+    desc.Width = m_width;
+    desc.MipLevels = 1;
+
+    HRESULT result = m_pDevice->CreateTexture2D(&desc, nullptr, &m_pDepthBuffer);
+    
+    if (FAILED(result))
+    {
+        return result;
+    }
+
+    result = SetResourceName(m_pSamplerState, "depth buffer");
+
+    result = m_pDevice->CreateDepthStencilView(m_pDepthBuffer, nullptr, &m_pDepthBufferDSV);
+
+    if (FAILED(result))
+    {
+        return result;
+    }
+
+    result = SetResourceName(m_pSamplerState, "depth buffer view");
 
     return result;
 }
