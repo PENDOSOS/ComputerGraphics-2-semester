@@ -48,6 +48,7 @@ public:
         , m_isButtonPressed(false)
         , m_pSamplerState(nullptr)
         , m_pSkybox(nullptr)
+        , m_pCube2(nullptr)
     {}
 
     ~Render() { terminate(); }
@@ -81,6 +82,7 @@ private:
 
     ID3D11Buffer* m_pSceneBuffer;
     ID3D11Buffer* m_pGeomBuffer;
+    ID3D11Buffer* m_pGeomBuffer2;
 
     ID3D11SamplerState* m_pSamplerState;
 
@@ -90,6 +92,7 @@ private:
     //Triangle* m_pTriangle;
     //Cube* m_pCube;
     TexturedCube* m_pCube;
+    TexturedCube* m_pCube2;
     Skybox* m_pSkybox;
 
     Camera* m_pCamera;

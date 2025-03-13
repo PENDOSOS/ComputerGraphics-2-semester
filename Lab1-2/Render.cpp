@@ -110,6 +110,7 @@ bool Render::init(HWND window)
     m_pCamera = new Camera;
     //m_pCube = new Cube(m_pDevice);
     m_pCube = new TexturedCube(m_pDevice);
+    m_pCube2 = new TexturedCube(m_pDevice);
     m_pSkybox = new Skybox(m_pDevice);
 
     return SUCCEEDED(result);
@@ -120,12 +121,19 @@ void Render::terminate()
     delete m_pCamera;
     //delete m_pTriangle;
     delete m_pCube;
+    delete m_pCube2;
     delete m_pSkybox;
     
     if (m_pSamplerState != nullptr)
     {
         m_pSamplerState->Release();
         m_pSamplerState = nullptr;
+    }
+
+    if (m_pGeomBuffer2 != nullptr)
+    {
+        m_pGeomBuffer2->Release();
+        m_pGeomBuffer2 = nullptr;
     }
 
     if (m_pGeomBuffer != nullptr)
@@ -201,6 +209,7 @@ bool Render::render()
     //m_pTriangle->render(m_pDeviceContext, m_width, m_height);
     m_pSkybox->render(m_pDeviceContext, m_width, m_height, m_pSceneBuffer, m_pSamplerState);
     m_pCube->render(m_pDeviceContext, m_pSceneBuffer, m_pGeomBuffer, m_pSamplerState);
+    m_pCube2->render(m_pDeviceContext, m_pSceneBuffer, m_pGeomBuffer2, m_pSamplerState);
 
     HRESULT result = m_pSwapChain->Present(0, 0);
     assert(SUCCEEDED(result));
@@ -405,6 +414,18 @@ HRESULT Render::initScene()
         return result;
     }
     result = SetResourceName(m_pGeomBuffer, "geom buffer");
+
+    GeomBuffer geomBuffer2;
+    geomBuffer2.M = DirectX::XMMatrixTranslation(2.0f, 0.0f, 2.0f);
+    data.pSysMem = &geomBuffer2;
+
+    result = m_pDevice->CreateBuffer(&geomBufferDesc, &data, &m_pGeomBuffer2);
+    assert(SUCCEEDED(result));
+    if (!SUCCEEDED(result))
+    {
+        return result;
+    }
+    result = SetResourceName(m_pGeomBuffer, "geom buffer 2");
 
     if (SUCCEEDED(result))
     {
