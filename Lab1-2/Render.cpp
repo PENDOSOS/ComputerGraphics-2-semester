@@ -116,7 +116,8 @@ bool Render::init(HWND window)
     m_pCube = new TexturedCube(m_pDevice);
     m_pCube2 = new TexturedCube(m_pDevice);
     m_pSkybox = new Skybox(m_pDevice);
-    m_pRect1 = new TransparentRect(m_pDevice);
+    m_pRect1 = new TransparentRect(m_pDevice, 1.0f, 128, 0, 128);
+    m_pRect2 = new TransparentRect(m_pDevice, -1.0f, 128, 0, 0);
 
     return SUCCEEDED(result);
 }
@@ -129,6 +130,7 @@ void Render::terminate()
     delete m_pCube2;
     delete m_pSkybox;
     delete m_pRect1;
+    delete m_pRect2;
     
     if (m_pSamplerState != nullptr)
     {
@@ -241,6 +243,7 @@ bool Render::render()
     m_pCube2->render(m_pDeviceContext, m_pSceneBuffer, m_pGeomBuffer2, m_pSamplerState);
 
     m_pRect1->render(m_pDeviceContext, m_pSceneBuffer);
+    m_pRect2->render(m_pDeviceContext, m_pSceneBuffer);
 
     HRESULT result = m_pSwapChain->Present(0, 0);
     assert(SUCCEEDED(result));

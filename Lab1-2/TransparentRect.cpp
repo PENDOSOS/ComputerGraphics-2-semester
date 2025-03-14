@@ -5,7 +5,7 @@ struct GeomBuffer
     DirectX::XMMATRIX M;
 };
 
-TransparentRect::TransparentRect(ID3D11Device* device) : m_pDevice(device)
+TransparentRect::TransparentRect(ID3D11Device* device, float offset, int colorRed, int colorGreen, int colorBlue) : m_pDevice(device), m_offset(offset), m_colorRed(colorRed), m_colorGreen(colorGreen), m_colorBlue(colorBlue)
 {
 	initBuffers();
 	initInputLayout();
@@ -34,12 +34,12 @@ void TransparentRect::render(ID3D11DeviceContext* context, ID3D11Buffer* sceneBu
 
 bool TransparentRect::initBuffers()
 {
-    static const RectVertex Vertices[] =
+    const RectVertex Vertices[] =
     {
-        { { 0.0, -0.75, -0.75 }, RGB(128,0,128) },
-        { { 0.0,  0.75, -0.75 }, RGB(128,0,128) },
-        { { 0.0,  0.75,  0.75 }, RGB(128,0,128) },
-        { { 0.0, -0.75,  0.75 }, RGB(128,0,128) }
+        { { 0.0, -0.75, -0.75 }, RGB(m_colorRed, m_colorGreen, m_colorBlue) },
+        { { 0.0,  0.75, -0.75 }, RGB(m_colorRed, m_colorGreen, m_colorBlue) },
+        { { 0.0,  0.75,  0.75 }, RGB(m_colorRed, m_colorGreen, m_colorBlue) },
+        { { 0.0, -0.75,  0.75 }, RGB(m_colorRed, m_colorGreen, m_colorBlue) }
     };
 
     static const UINT16 Indices[] = 
@@ -93,7 +93,7 @@ bool TransparentRect::initBuffers()
     desc.StructureByteStride = 0;
 
     GeomBuffer geomBuffer;
-    geomBuffer.M = DirectX::XMMatrixMultiply(DirectX::XMMatrixRotationY(-3.14 / 4), DirectX::XMMatrixTranslation(1.0f, 0.0f, 1.0f));
+    geomBuffer.M = DirectX::XMMatrixMultiply(DirectX::XMMatrixRotationY(-3.14 / 4), DirectX::XMMatrixTranslation(m_offset, 0.0f, m_offset));
 
     D3D11_SUBRESOURCE_DATA data;
     data.pSysMem = &geomBuffer;

@@ -11,7 +11,7 @@ struct RectVertex
 class TransparentRect
 {
 public:
-	TransparentRect(ID3D11Device* device);
+	TransparentRect(ID3D11Device* device, float offset, int colorRed, int colorGreen, int colorBlue);
 	~TransparentRect();
 
 	void render(ID3D11DeviceContext* context, ID3D11Buffer* sceneBuffer);
@@ -32,5 +32,10 @@ private:
 	ID3D11InputLayout* m_pInputLayout;
 
 	ID3D11Buffer* m_pGeomBuffer;
+
+	float m_offset;
+	int m_colorRed;
+	int m_colorGreen;
+	int m_colorBlue;
 };
 

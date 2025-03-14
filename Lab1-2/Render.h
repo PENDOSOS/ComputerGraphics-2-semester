@@ -56,6 +56,7 @@ public:
         , m_pGeomBuffer2(nullptr)
         , m_pDepthState(nullptr)
         , m_pRect1(nullptr)
+        , m_pRect2(nullptr)
     {}
 
     ~Render() { terminate(); }
@@ -107,6 +108,7 @@ private:
     TexturedCube* m_pCube2;
     Skybox* m_pSkybox;
     TransparentRect* m_pRect1;
+    TransparentRect* m_pRect2;
 
     Camera* m_pCamera;
     double m_angle = 0;
