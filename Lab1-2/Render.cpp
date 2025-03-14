@@ -110,13 +110,17 @@ bool Render::init(HWND window)
     if (!SUCCEEDED(result))
         return result;
 
+    result = initBlendState();
+    if (!SUCCEEDED(result))
+        return result;
+
     //m_pTriangle = new Triangle(m_pDevice);
     m_pCamera = new Camera;
     //m_pCube = new Cube(m_pDevice);
     m_pCube = new TexturedCube(m_pDevice);
     m_pCube2 = new TexturedCube(m_pDevice);
     m_pSkybox = new Skybox(m_pDevice);
-    m_pRect1 = new TransparentRect(m_pDevice, 1.0f, 128, 0, 128);
+    m_pRect1 = new TransparentRect(m_pDevice, 1.0f, 0, 0, 128);
     m_pRect2 = new TransparentRect(m_pDevice, -1.0f, 128, 0, 0);
 
     return SUCCEEDED(result);
@@ -154,6 +158,12 @@ void Render::terminate()
     {
         m_pSceneBuffer->Release();
         m_pSceneBuffer = nullptr;
+    }
+
+    if (m_pBlendState != nullptr)
+    {
+        m_pBlendState->Release();
+        m_pBlendState = nullptr;
     }
 
     if (m_pDepthState != nullptr)
@@ -235,15 +245,19 @@ bool Render::render()
     m_pDeviceContext->RSSetState(m_pRasterizerState);
 
     //m_pTriangle->render(m_pDeviceContext, m_width, m_height);
-    m_pSkybox->render(m_pDeviceContext, m_width, m_height, m_pSceneBuffer, m_pSamplerState);
 
     m_pDeviceContext->OMSetDepthStencilState(m_pDepthState, 0);
 
     m_pCube->render(m_pDeviceContext, m_pSceneBuffer, m_pGeomBuffer, m_pSamplerState);
     m_pCube2->render(m_pDeviceContext, m_pSceneBuffer, m_pGeomBuffer2, m_pSamplerState);
 
-    m_pRect1->render(m_pDeviceContext, m_pSceneBuffer);
-    m_pRect2->render(m_pDeviceContext, m_pSceneBuffer);
+    m_pSkybox->render(m_pDeviceContext, m_width, m_height, m_pSceneBuffer, m_pSamplerState);
+
+    m_pDeviceContext->OMSetBlendState(m_pBlendState, nullptr, 0xFFFFFFFF);
+
+    drawTransparentSorted();
+
+    
 
     HRESULT result = m_pSwapChain->Present(0, 0);
     assert(SUCCEEDED(result));
@@ -572,4 +586,58 @@ HRESULT Render::initDepthStencil()
     result = SetResourceName(m_pSamplerState, "depth buffer view");
 
     return result;
+}
+
+HRESULT Render::initBlendState()
+{
+    D3D11_BLEND_DESC desc = {};
+    desc.AlphaToCoverageEnable = FALSE;
+    desc.IndependentBlendEnable = FALSE;
+    desc.RenderTarget[0].BlendEnable = TRUE;
+    desc.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;
+    desc.RenderTarget[0].DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
+    desc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
+    desc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
+    desc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
+    desc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;
+    desc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ZERO;
+
+    HRESULT result = m_pDevice->CreateBlendState(&desc, &m_pBlendState);
+
+    if (SUCCEEDED(result))
+    {
+        result = SetResourceName(m_pBlendState, "blend state");
+    }
+
+    return result;
+}
+
+void Render::drawTransparentSorted()
+{
+    float d0 = 0.0f, d1 = 0.0f;
+    DirectX::XMFLOAT3 cameraPos;
+    cameraPos.x = m_pCamera->poi.x + cosf(m_pCamera->theta) * cosf(m_pCamera->phi) * m_pCamera->r;
+    cameraPos.y = m_pCamera->poi.y + sinf(m_pCamera->theta) * m_pCamera->r;
+    cameraPos.z = m_pCamera->poi.z + cosf(m_pCamera->theta)* sinf(m_pCamera->phi)* m_pCamera->r;
+
+    for (int i = 0; i < 4; i++)
+    {
+        d0 = (std::max)(d0, (float)(pow((cameraPos.x - m_pRect1->coords[i].x), 2)
+                                  + pow((cameraPos.y - m_pRect1->coords[i].y), 2) 
+                                  + pow((cameraPos.z - m_pRect1->coords[i].z), 2)));
+        d1 = (std::max)(d1, (float)(pow((cameraPos.x - m_pRect2->coords[i].x), 2)
+                                  + pow((cameraPos.y - m_pRect2->coords[i].y), 2)
+                                  + pow((cameraPos.z - m_pRect2->coords[i].z), 2)));
+    }
+
+    if (d0 < d1)
+    {
+        m_pRect2->render(m_pDeviceContext, m_pSceneBuffer);
+        m_pRect1->render(m_pDeviceContext, m_pSceneBuffer);
+    }
+    else
+    {
+        m_pRect1->render(m_pDeviceContext, m_pSceneBuffer);
+        m_pRect2->render(m_pDeviceContext, m_pSceneBuffer);
+    }
 }

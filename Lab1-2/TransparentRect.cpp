@@ -36,11 +36,19 @@ bool TransparentRect::initBuffers()
 {
     const RectVertex Vertices[] =
     {
-        { { 0.0, -0.75, -0.75 }, RGB(m_colorRed, m_colorGreen, m_colorBlue) },
-        { { 0.0,  0.75, -0.75 }, RGB(m_colorRed, m_colorGreen, m_colorBlue) },
-        { { 0.0,  0.75,  0.75 }, RGB(m_colorRed, m_colorGreen, m_colorBlue) },
-        { { 0.0, -0.75,  0.75 }, RGB(m_colorRed, m_colorGreen, m_colorBlue) }
+        { { 0.0, -1.0, -1.0 }, RGB(m_colorRed, m_colorGreen, m_colorBlue) },
+        { { 0.0,  1.0, -1.0 }, RGB(m_colorRed, m_colorGreen, m_colorBlue) },
+        { { 0.0,  1.0,  1.0 }, RGB(m_colorRed, m_colorGreen, m_colorBlue) },
+        { { 0.0, -1.0,  1.0 }, RGB(m_colorRed, m_colorGreen, m_colorBlue) }
     };
+
+    coords.resize(4);
+    for (int i = 0; i < 4; i++)
+    {
+        coords[i].x = Vertices[0].Pos.x + m_offset;
+        coords[i].y = Vertices[0].Pos.y;
+        coords[i].z = Vertices[0].Pos.z + m_offset;
+    }
 
     static const UINT16 Indices[] = 
     {

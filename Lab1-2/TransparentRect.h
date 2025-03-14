@@ -15,6 +15,10 @@ public:
 	~TransparentRect();
 
 	void render(ID3D11DeviceContext* context, ID3D11Buffer* sceneBuffer);
+
+public:
+	std::vector<DirectX::XMFLOAT3> coords;
+
 private:
 	bool initBuffers();
 	bool initInputLayout();

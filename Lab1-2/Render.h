@@ -57,6 +57,7 @@ public:
         , m_pDepthState(nullptr)
         , m_pRect1(nullptr)
         , m_pRect2(nullptr)
+        , m_pBlendState(nullptr)
     {}
 
     ~Render() { terminate(); }
@@ -79,6 +80,9 @@ private:
     HRESULT initScene();
     HRESULT initSamplers();
     HRESULT initDepthStencil();
+    HRESULT initBlendState();
+
+    void drawTransparentSorted();
 
 private:
     ID3D11Device* m_pDevice;
@@ -92,6 +96,8 @@ private:
     ID3D11Texture2D* m_pDepthBuffer;
     ID3D11DepthStencilView* m_pDepthBufferDSV;
     ID3D11DepthStencilState* m_pDepthState;
+
+    ID3D11BlendState* m_pBlendState;
 
     ID3D11Buffer* m_pSceneBuffer;
     ID3D11Buffer* m_pGeomBuffer;
