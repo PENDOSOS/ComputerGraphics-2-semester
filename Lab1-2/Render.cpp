@@ -160,10 +160,22 @@ void Render::terminate()
         m_pSceneBuffer = nullptr;
     }
 
+    if (m_pTransparentBlendState != nullptr)
+    {
+        m_pTransparentBlendState->Release();
+        m_pTransparentBlendState = nullptr;
+    }
+
     if (m_pBlendState != nullptr)
     {
         m_pBlendState->Release();
         m_pBlendState = nullptr;
+    }
+
+    if (m_pTransparentDepthState != nullptr)
+    {
+        m_pTransparentDepthState->Release();
+        m_pTransparentDepthState = nullptr;
     }
 
     if (m_pDepthState != nullptr)
@@ -243,21 +255,23 @@ bool Render::render()
     rect.bottom = m_height;
     m_pDeviceContext->RSSetScissorRects(1, &rect);
     m_pDeviceContext->RSSetState(m_pRasterizerState);
+    m_pDeviceContext->OMSetDepthStencilState(m_pDepthState, 0);
+    m_pDeviceContext->OMSetBlendState(m_pBlendState, nullptr, 0xFFFFFFFF);
 
     //m_pTriangle->render(m_pDeviceContext, m_width, m_height);
-
-    m_pDeviceContext->OMSetDepthStencilState(m_pDepthState, 0);
 
     m_pCube->render(m_pDeviceContext, m_pSceneBuffer, m_pGeomBuffer, m_pSamplerState);
     m_pCube2->render(m_pDeviceContext, m_pSceneBuffer, m_pGeomBuffer2, m_pSamplerState);
 
     m_pSkybox->render(m_pDeviceContext, m_width, m_height, m_pSceneBuffer, m_pSamplerState);
 
-    m_pDeviceContext->OMSetBlendState(m_pBlendState, nullptr, 0xFFFFFFFF);
+    m_pDeviceContext->OMSetDepthStencilState(m_pTransparentDepthState, 0);
+    m_pDeviceContext->OMSetBlendState(m_pTransparentBlendState, nullptr, 0xFFFFFFFF);
+    //m_pDeviceContext->OMSetDepthStencilState(m_pTransparentDepthState, 0);
 
     drawTransparentSorted();
-
-    
+    /*m_pRect1->render(m_pDeviceContext, m_pSceneBuffer);
+    m_pRect2->render(m_pDeviceContext, m_pSceneBuffer);*/
 
     HRESULT result = m_pSwapChain->Present(0, 0);
     assert(SUCCEEDED(result));
@@ -525,6 +539,19 @@ HRESULT Render::initScene()
     }
     result = SetResourceName(m_pDepthState, "depth state");
 
+    D3D11_DEPTH_STENCIL_DESC transparentDepthDesc = {};
+    transparentDepthDesc.DepthEnable = TRUE;
+    transparentDepthDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
+    transparentDepthDesc.DepthFunc = D3D11_COMPARISON_LESS_EQUAL;
+    transparentDepthDesc.StencilEnable = FALSE;
+
+    result = m_pDevice->CreateDepthStencilState(&transparentDepthDesc, &m_pTransparentDepthState);
+    if (!SUCCEEDED(result))
+    {
+        return result;
+    }
+    result = SetResourceName(m_pTransparentDepthState, "depth state");
+
     return result;
 }
 
@@ -593,7 +620,7 @@ HRESULT Render::initBlendState()
     D3D11_BLEND_DESC desc = {};
     desc.AlphaToCoverageEnable = FALSE;
     desc.IndependentBlendEnable = FALSE;
-    desc.RenderTarget[0].BlendEnable = TRUE;
+    desc.RenderTarget[0].BlendEnable = FALSE;
     desc.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;
     desc.RenderTarget[0].DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
     desc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
@@ -607,6 +634,15 @@ HRESULT Render::initBlendState()
     if (SUCCEEDED(result))
     {
         result = SetResourceName(m_pBlendState, "blend state");
+    }
+
+    desc.RenderTarget[0].BlendEnable = TRUE;
+
+    result = m_pDevice->CreateBlendState(&desc, &m_pTransparentBlendState);
+
+    if (SUCCEEDED(result))
+    {
+        result = SetResourceName(m_pTransparentBlendState, "blend state");
     }
 
     return result;

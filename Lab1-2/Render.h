@@ -58,6 +58,8 @@ public:
         , m_pRect1(nullptr)
         , m_pRect2(nullptr)
         , m_pBlendState(nullptr)
+        , m_pTransparentDepthState(nullptr)
+        , m_pTransparentBlendState(nullptr)
     {}
 
     ~Render() { terminate(); }
@@ -96,8 +98,10 @@ private:
     ID3D11Texture2D* m_pDepthBuffer;
     ID3D11DepthStencilView* m_pDepthBufferDSV;
     ID3D11DepthStencilState* m_pDepthState;
+    ID3D11DepthStencilState* m_pTransparentDepthState;
 
     ID3D11BlendState* m_pBlendState;
+    ID3D11BlendState* m_pTransparentBlendState;
 
     ID3D11Buffer* m_pSceneBuffer;
     ID3D11Buffer* m_pGeomBuffer;
