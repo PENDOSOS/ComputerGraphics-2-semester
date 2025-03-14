@@ -29,8 +29,5 @@ private:
 	ID3D11PixelShader* m_pPixelShader;
 	ID3D11VertexShader* m_pVertexShader;
 	ID3D11InputLayout* m_pInputLayout;
-
-	ID3D11Texture2D* m_pTexture;
-	//ID3D11Texture2D* m_pCubeTexture;
 };
 

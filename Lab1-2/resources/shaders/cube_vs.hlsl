@@ -26,7 +26,7 @@ VSOutput VS(VSInput input)
     VSOutput result;
 
     result.pos = mul(vp, mul(model, float4(input.pos, 1.0)));
-    result.color = input.color;
+    result.color = float4(input.color.xyz, 0.5);
 
     return result;
 }

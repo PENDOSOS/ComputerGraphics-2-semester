@@ -4,6 +4,7 @@
 //#include "Cube.h"
 #include "TexturedCube.h"
 #include "Skybox.h"
+#include "TransparentRect.h"
 
 #define PI 3.14159265358979323846
 
@@ -48,6 +49,17 @@ public:
         , m_isButtonPressed(false)
         , m_pSamplerState(nullptr)
         , m_pSkybox(nullptr)
+        , m_pCube2(nullptr)
+        , m_pRasterizerState(nullptr)
+        , m_pDepthBuffer(nullptr)
+        , m_pDepthBufferDSV(nullptr)
+        , m_pGeomBuffer2(nullptr)
+        , m_pDepthState(nullptr)
+        , m_pRect1(nullptr)
+        , m_pRect2(nullptr)
+        , m_pBlendState(nullptr)
+        , m_pTransparentDepthState(nullptr)
+        , m_pTransparentBlendState(nullptr)
     {}
 
     ~Render() { terminate(); }
@@ -69,6 +81,10 @@ private:
     HRESULT setupBackBuffer();
     HRESULT initScene();
     HRESULT initSamplers();
+    HRESULT initDepthStencil();
+    HRESULT initBlendState();
+
+    void drawTransparentSorted();
 
 private:
     ID3D11Device* m_pDevice;
@@ -79,8 +95,17 @@ private:
 
     ID3D11RasterizerState* m_pRasterizerState;
 
+    ID3D11Texture2D* m_pDepthBuffer;
+    ID3D11DepthStencilView* m_pDepthBufferDSV;
+    ID3D11DepthStencilState* m_pDepthState;
+    ID3D11DepthStencilState* m_pTransparentDepthState;
+
+    ID3D11BlendState* m_pBlendState;
+    ID3D11BlendState* m_pTransparentBlendState;
+
     ID3D11Buffer* m_pSceneBuffer;
     ID3D11Buffer* m_pGeomBuffer;
+    ID3D11Buffer* m_pGeomBuffer2;
 
     ID3D11SamplerState* m_pSamplerState;
 
@@ -90,7 +115,10 @@ private:
     //Triangle* m_pTriangle;
     //Cube* m_pCube;
     TexturedCube* m_pCube;
+    TexturedCube* m_pCube2;
     Skybox* m_pSkybox;
+    TransparentRect* m_pRect1;
+    TransparentRect* m_pRect2;
 
     Camera* m_pCamera;
     double m_angle = 0;
