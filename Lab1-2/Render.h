@@ -8,9 +8,17 @@
 
 #define PI 3.14159265358979323846
 
+struct Light
+{
+    DirectX::XMFLOAT4 Pos;
+    DirectX::XMFLOAT4 Color;
+};
+
 struct SceneBuffer
 {
     DirectX::XMMATRIX VP;
+    Light light;
+    DirectX::XMFLOAT4 AmbientColor;
     DirectX::XMFLOAT3 CameraPos;
 };
 

@@ -381,6 +381,9 @@ bool Render::update()
 
         sceneBuffer.VP = DirectX::XMMatrixMultiply(v, p);
         sceneBuffer.CameraPos = cameraPos;
+        sceneBuffer.light.Color = { 1, 1, 0, 0 };
+        sceneBuffer.light.Pos = { 0, 2, 0, 0 };
+        sceneBuffer.AmbientColor = { 0.57, 0.541, 0.722, 1.0 };
 
         m_pDeviceContext->Unmap(m_pSceneBuffer, 0);
     }
@@ -601,7 +604,7 @@ HRESULT Render::initDepthStencil()
         return result;
     }
 
-    result = SetResourceName(m_pSamplerState, "depth buffer");
+    result = SetResourceName(m_pDepthBuffer, "depth buffer");
 
     result = m_pDevice->CreateDepthStencilView(m_pDepthBuffer, nullptr, &m_pDepthBufferDSV);
 
@@ -610,7 +613,7 @@ HRESULT Render::initDepthStencil()
         return result;
     }
 
-    result = SetResourceName(m_pSamplerState, "depth buffer view");
+    result = SetResourceName(m_pDepthBufferDSV, "depth buffer view");
 
     return result;
 }

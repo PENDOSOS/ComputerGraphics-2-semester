@@ -1,8 +1,12 @@
 cbuffer SceneBuffer : register(b0)
 {
     float4x4 vp;
-    float4 cameraPos;
+    float4 lightPos;
+    float4 lightColor;
+    float4 ambientColor;
+    float3 cameraPos;
 };
+
 
 cbuffer GeomBuffer : register(b1)
 {

@@ -22,6 +22,7 @@ private:
 
 	ID3D11Buffer* m_pIndexBuffer;
 	ID3D11Buffer* m_pVertexBuffer;
+	ID3D11Buffer* m_pLightingParamBuffer;
 
 	ID3D11PixelShader* m_pPixelShader;
 	ID3D11VertexShader* m_pVertexShader;
