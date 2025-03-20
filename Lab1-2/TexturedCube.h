@@ -28,6 +28,7 @@ private:
 	ID3D11InputLayout* m_pInputLayout;
 
 	ID3D11ShaderResourceView* m_pSRV;
+	ID3D11ShaderResourceView* m_pNormalSRV;
 
 	//ID3D11Buffer* m_pGeomBuffer;
 };

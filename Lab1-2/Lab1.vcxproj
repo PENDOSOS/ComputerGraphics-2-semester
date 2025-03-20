@@ -136,8 +136,12 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <PreBuildEvent>
-      <Command>xcopy "$(ProjectDir)\resources" "$(SolutionDir)\x64\Debug\resources" /e /i /y</Command>
+      <Command>xcopy "$(ProjectDir)\resources" "$(SolutionDir)\x64\Release\resources" /e /i /y</Command>
     </PreBuildEvent>
+    <PostBuildEvent>
+      <Command>
+      </Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="Cube.h" />

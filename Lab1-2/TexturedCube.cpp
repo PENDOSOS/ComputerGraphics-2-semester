@@ -182,9 +182,21 @@ bool TexturedCube::initTexture()
 {
     HRESULT result = DirectX::CreateDDSTextureFromFile(
         m_pDevice,
-        L"resources/textures/logo.dds",
+        L"resources/textures/tiles.dds",
         nullptr,
         &m_pSRV
+    );
+
+    if (FAILED(result))
+    {
+        return false;
+    }
+
+    result = DirectX::CreateDDSTextureFromFile(
+        m_pDevice,
+        L"resources/textures/tiles_normal.dds",
+        nullptr,
+        &m_pNormalSRV
     );
 
     if (FAILED(result))
