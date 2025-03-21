@@ -146,6 +146,7 @@
   <ItemGroup>
     <ClInclude Include="Cube.h" />
     <ClInclude Include="framework.h" />
+    <ClInclude Include="LightModel.h" />
     <ClInclude Include="Render.h" />
     <ClInclude Include="Skybox.h" />
     <ClInclude Include="TexturedCube.h" />
@@ -158,6 +159,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Cube.cpp" />
+    <ClCompile Include="LightModel.cpp" />
     <ClCompile Include="Render.cpp" />
     <ClCompile Include="Skybox.cpp" />
     <ClCompile Include="TexturedCube.cpp" />

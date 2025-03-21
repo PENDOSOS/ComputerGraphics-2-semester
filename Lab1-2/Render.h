@@ -25,6 +25,7 @@ struct SceneBuffer
 struct GeomBuffer
 {
     DirectX::XMMATRIX M;
+    DirectX::XMMATRIX NormalM;
 };
 
 struct Camera

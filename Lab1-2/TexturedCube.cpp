@@ -4,9 +4,9 @@ struct CubeVertex
 {
     DirectX::XMFLOAT3 pos;
 	//float x, y, z;
-    DirectX::XMFLOAT3 norm;
-    //float norm_x, norm_y, norm_z;
     DirectX::XMFLOAT3 tan;
+    //float norm_x, norm_y, norm_z;
+    DirectX::XMFLOAT3 norm;
     /*float tan_x, tan_y, tan_z;*/
     DirectX::XMFLOAT2 uv;
     /*float u, v;*/
@@ -52,6 +52,7 @@ void TexturedCube::render(ID3D11DeviceContext* context, ID3D11Buffer* sceneBuffe
         context->VSSetShader(m_pVertexShader, nullptr, 0);
         context->PSSetShader(m_pPixelShader, nullptr, 0);
         context->PSSetShaderResources(0, 1, &m_pSRV);
+        context->PSSetShaderResources(1, 1, &m_pNormalSRV);
         context->PSSetSamplers(0, 1, &samplerState);
         context->IASetInputLayout(m_pInputLayout);
 
@@ -73,35 +74,35 @@ bool TexturedCube::initBuffers()
     static const CubeVertex cubeVertices[24] = 
     {
         // Bottom face
-        { { -0.5, -0.5,  0.5 }, { 0, 0, 0 }, { 0, 0, 0 }, { 0, 1 } },
-        { { 0.5, -0.5,  0.5 }, { 0, 0, 0 }, { 0, 0, 0 }, { 1, 1 } },
-        { { 0.5, -0.5, -0.5 }, { 0, 0, 0 }, { 0, 0, 0 }, { 1, 0 } },
-        { { -0.5, -0.5, -0.5 }, {0, 0, 0}, {0, 0, 0}, {0, 0}},
+        {{-0.5, -0.5,  0.5}, {1, 0, 0}, {0, -1, 0}, {0, 1}},
+        {{ 0.5, -0.5,  0.5}, {1, 0, 0}, {0, -1, 0}, {1, 1}},
+        {{ 0.5, -0.5, -0.5}, {1, 0, 0}, {0, -1, 0}, {1, 0}},
+        {{-0.5, -0.5, -0.5}, {1, 0, 0}, {0, -1, 0}, {0, 0}},
         // Top face
-        { { -0.5,  0.5, -0.5 }, {0, 0, 0}, {0, 0, 0}, {0, 1}},
-        { {  0.5,  0.5, -0.5 }, { 0, 0, 0 }, { 0, 0, 0 }, {1, 1}},
-        { {  0.5,  0.5,  0.5 }, { 0, 0, 0 }, { 0, 0, 0 }, {1, 0}},
-        { { -0.5,  0.5,  0.5 }, { 0, 0, 0 }, { 0, 0, 0 }, {0, 0}},
+        {{-0.5,  0.5, -0.5}, {1, 0, 0}, {0, 1, 0}, {0, 1}},
+        {{ 0.5,  0.5, -0.5}, {1, 0, 0}, {0, 1, 0}, {1, 1}},
+        {{ 0.5,  0.5,  0.5}, {1, 0, 0}, {0, 1, 0}, {1, 0}},
+        {{-0.5,  0.5,  0.5}, {1, 0, 0}, {0, 1, 0}, {0, 0}},
         // Front face
-        { { 0.5, -0.5, -0.5 }, { 0, 0, 0 }, { 0, 0, 0 }, {0, 1}},
-        { { 0.5, -0.5,  0.5 }, { 0, 0, 0 }, { 0, 0, 0 }, {1, 1}},
-        { { 0.5,  0.5,  0.5 }, { 0, 0, 0 }, { 0, 0, 0 }, {1, 0}},
-        { { 0.5,  0.5, -0.5 }, { 0, 0, 0 }, { 0, 0, 0 }, {0, 0}},
+        {{ 0.5, -0.5, -0.5}, {0, 0, 1}, {1, 0, 0}, {0, 1}},
+        {{ 0.5, -0.5,  0.5}, {0, 0, 1}, {1, 0, 0}, {1, 1}},
+        {{ 0.5,  0.5,  0.5}, {0, 0, 1}, {1, 0, 0}, {1, 0}},
+        {{ 0.5,  0.5, -0.5}, {0, 0, 1}, {1, 0, 0}, {0, 0}},
         // Back face
-        { {-0.5, -0.5,  0.5 }, { 0, 0, 0 }, { 0, 0, 0 }, {0, 1}},
-        { {-0.5, -0.5, -0.5 }, { 0, 0, 0 }, { 0, 0, 0 }, {1, 1}},
-        { {-0.5,  0.5, -0.5 }, { 0, 0, 0 }, { 0, 0, 0 }, {1, 0}},
-        { {-0.5,  0.5,  0.5 }, { 0, 0, 0 }, { 0, 0, 0 }, {0, 0}},
+        {{-0.5, -0.5,  0.5}, {0, 0, -1}, {-1, 0, 0}, {0, 1}},
+        {{-0.5, -0.5, -0.5}, {0, 0, -1}, {-1, 0, 0}, {1, 1}},
+        {{-0.5,  0.5, -0.5}, {0, 0, -1}, {-1, 0, 0}, {1, 0}},
+        {{-0.5,  0.5,  0.5}, {0, 0, -1}, {-1, 0, 0}, {0, 0}},
         // Left face
-        { {0.5, -0.5,  0.5 }, { 0, 0, 0 }, { 0, 0, 0 }, {0, 1}},
-        { {-0.5, -0.5,  0.5 }, { 0, 0, 0 }, { 0, 0, 0 }, {1, 1}},
-        { {-0.5,  0.5,  0.5 }, { 0, 0, 0 }, { 0, 0, 0 }, {1, 0}},
-        { {0.5,  0.5,  0.5 }, { 0, 0, 0 }, { 0, 0, 0 }, {0, 0}},
+        {{ 0.5, -0.5,  0.5}, {-1, 0, 0}, {0, 0, 1}, {0, 1}},
+        {{-0.5, -0.5,  0.5}, {-1, 0, 0}, {0, 0, 1}, {1, 1}},
+        {{-0.5,  0.5,  0.5}, {-1, 0, 0}, {0, 0, 1}, {1, 0}},
+        {{ 0.5,  0.5,  0.5}, {-1, 0, 0}, {0, 0, 1}, {0, 0}},
         // Right face
-        { {-0.5, -0.5, -0.5 }, { 0, 0, 0 }, { 0, 0, 0 }, { 0, 1}},
-        { { 0.5, -0.5, -0.5 }, { 0, 0, 0 }, { 0, 0, 0 }, { 1, 1}},
-        { { 0.5,  0.5, -0.5 }, { 0, 0, 0 }, { 0, 0, 0 }, {1, 0}},
-        { {-0.5,  0.5, -0.5 }, { 0, 0, 0 }, { 0, 0, 0 }, {0, 0}},
+        {{-0.5, -0.5, -0.5}, {1, 0, 0}, {0, 0, -1}, {0, 1}},
+        {{ 0.5, -0.5, -0.5}, {1, 0, 0}, {0, 0, -1}, {1, 1}},
+        {{ 0.5,  0.5, -0.5}, {1, 0, 0}, {0, 0, -1}, {1, 0}},
+        {{-0.5,  0.5, -0.5}, {1, 0, 0}, {0, 0, -1}, {0, 0}}
     };
     static const UINT16 indices[36] = 
     {
@@ -160,7 +161,7 @@ bool TexturedCube::initBuffers()
     lightParamsBufferDesc.StructureByteStride = 0;
 
     LightParams params;
-    params.Params = { 0.2f, 0.0f, 0, 0 };
+    params.Params = { 64.0f, 0.0f, 0, 0 };
 
     D3D11_SUBRESOURCE_DATA lightParamsData = {};
     lightParamsData.pSysMem = &params;
@@ -180,8 +181,8 @@ bool TexturedCube::initInputLayout()
     D3D11_INPUT_ELEMENT_DESC inputDesc[] =
     {
         {"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
-        {"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0},
-        {"TANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 24, D3D11_INPUT_PER_VERTEX_DATA, 0},
+        {"TANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0},
+        {"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 24, D3D11_INPUT_PER_VERTEX_DATA, 0},
         {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 36, D3D11_INPUT_PER_VERTEX_DATA, 0},
     };
 

@@ -337,9 +337,12 @@ bool Render::update()
     DirectX::XMMATRIX m = DirectX::XMMatrixRotationAxis(DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 1.0f), -(float)m_angle);
 
     geomBuffer.M = m;
+    m = DirectX::XMMatrixInverse(nullptr, m);
+    m = DirectX::XMMatrixTranspose(m);
+    geomBuffer.NormalM = m;
 
     m_pDeviceContext->UpdateSubresource(m_pGeomBuffer, 0, nullptr, &geomBuffer, 0, 0);
-
+   
     m_prevSec = usec;
 
     // Setup camera
@@ -382,8 +385,8 @@ bool Render::update()
         sceneBuffer.VP = DirectX::XMMatrixMultiply(v, p);
         sceneBuffer.CameraPos = cameraPos;
         sceneBuffer.light.Color = { 1, 1, 0, 0 };
-        sceneBuffer.light.Pos = { 0, 2, 0, 0 };
-        sceneBuffer.AmbientColor = { 0.57, 0.541, 0.722, 1.0 };
+        sceneBuffer.light.Pos = { 0.2f, 0.7f, 0.2f, 0 };
+        sceneBuffer.AmbientColor = { 0.57 * 1.0f / 3.0f, 0.541 * 1.0f / 3.0f, 0.722 * 1.0f / 4.0f, 1.0 };
 
         m_pDeviceContext->Unmap(m_pSceneBuffer, 0);
     }
@@ -479,6 +482,7 @@ HRESULT Render::initScene()
 
     GeomBuffer geomBuffer;
     geomBuffer.M = DirectX::XMMatrixIdentity();
+    geomBuffer.NormalM = DirectX::XMMatrixTranspose(DirectX::XMMatrixInverse(nullptr, DirectX::XMMatrixIdentity()));
 
     D3D11_SUBRESOURCE_DATA data;
     data.pSysMem = &geomBuffer;
@@ -495,6 +499,7 @@ HRESULT Render::initScene()
 
     GeomBuffer geomBuffer2;
     geomBuffer2.M = DirectX::XMMatrixTranslation(2.0f, 0.0f, 2.0f);
+    geomBuffer2.NormalM = DirectX::XMMatrixIdentity();
     data.pSysMem = &geomBuffer2;
 
     result = m_pDevice->CreateBuffer(&geomBufferDesc, &data, &m_pGeomBuffer2);

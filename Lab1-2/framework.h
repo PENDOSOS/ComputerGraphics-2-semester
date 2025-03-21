@@ -137,7 +137,7 @@ inline bool compileShader(ID3D11Device* device, LPCTSTR srcFilename, const std::
             result = D3DCompile(data.data(), data.size(), "", nullptr, nullptr, "VS", "vs_5_0", flags, 0, &pCode, &pErrMsg);
             if (!SUCCEEDED(result))
             {
-                return false;
+                break;
             }
             result = device->CreateVertexShader(pCode->GetBufferPointer(), pCode->GetBufferSize(), nullptr, &pVertexShader);
             if (SUCCEEDED(result))
@@ -152,7 +152,7 @@ inline bool compileShader(ID3D11Device* device, LPCTSTR srcFilename, const std::
             result = D3DCompile(data.data(), data.size(), "", nullptr, nullptr, "PS", "ps_5_0", flags, 0, &pCode, &pErrMsg);
             if (!SUCCEEDED(result))
             {
-                return false;
+                break;
             }
             result = device->CreatePixelShader(pCode->GetBufferPointer(), pCode->GetBufferSize(), nullptr, &pPixelShader);
             if (SUCCEEDED(result))
