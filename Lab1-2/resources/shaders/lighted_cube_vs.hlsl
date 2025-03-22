@@ -1,11 +1,4 @@
-cbuffer SceneBuffer : register(b0)
-{
-    float4x4 vp;
-    float4 lightPos;
-    float4 lightColor;
-    float4 ambientColor;
-    float3 cameraPos;
-};
+#include "resources/SceneBuffer.h"
 
 cbuffer GeomBuffer : register(b1)
 {

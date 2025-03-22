@@ -145,6 +145,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="Cube.h" />
+    <ClInclude Include="D3DInclude.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="LightModel.h" />
     <ClInclude Include="Render.h" />
@@ -159,6 +160,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Cube.cpp" />
+    <ClCompile Include="D3DInclude.cpp" />
     <ClCompile Include="LightModel.cpp" />
     <ClCompile Include="Render.cpp" />
     <ClCompile Include="Skybox.cpp" />
