@@ -7,6 +7,8 @@
 
 #include <windowsx.h>
 
+extern LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+
 #define MAX_LOADSTRING 100
 
 // Глобальные переменные:
@@ -166,6 +168,9 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 //
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
+    if (ImGui_ImplWin32_WndProcHandler(hWnd, message, wParam, lParam))
+        return true;
+
     switch (message)
     {
     case WM_SIZE:
@@ -194,13 +199,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             }
         }
         break;
-    case WM_LBUTTONDOWN:
+    case WM_RBUTTONDOWN:
         if (pRender != nullptr)
         {
             pRender->mouseLeftButton(true, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
         }
         break;
-    case WM_LBUTTONUP:
+    case WM_RBUTTONUP:
         if (pRender != nullptr)
         {
             pRender->mouseLeftButton(false, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));

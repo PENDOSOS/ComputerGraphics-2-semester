@@ -4,6 +4,7 @@ cbuffer GeomBuffer : register(b1)
 {
     float4x4 model;
     float4x4 modelNormal;
+    float4 params; // x - shininess, y - use normal map
 };
 
 struct VSInput

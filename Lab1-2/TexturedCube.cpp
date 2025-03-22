@@ -62,7 +62,7 @@ void TexturedCube::render(ID3D11DeviceContext* context, ID3D11Buffer* sceneBuffe
         context->VSSetConstantBuffers(0, 1, &sceneBuffer);
         context->VSSetConstantBuffers(1, 1, &geomBuffer);
         context->PSSetConstantBuffers(0, 1, &sceneBuffer);
-        context->PSSetConstantBuffers(2, 1, &m_pLightingParamBuffer);
+        context->PSSetConstantBuffers(1, 1, &geomBuffer);
 
         context->DrawIndexed(36, 0, 0);
     }

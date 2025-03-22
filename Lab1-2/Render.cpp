@@ -2,6 +2,10 @@
 
 #include "Render.h"
 
+#include "imgui.h"
+#include "backends/imgui_impl_dx11.h"
+#include "backends/imgui_impl_win32.h"
+
 #pragma comment(lib, "dxgi.lib") // don't work on my computer without these libs
 #pragma comment(lib, "d3d11.lib") // uncomment if it doesn't launch
 
@@ -114,6 +118,28 @@ bool Render::init(HWND window)
     if (!SUCCEEDED(result))
         return result;
 
+    if (SUCCEEDED(result))
+    {
+        // Setup Dear ImGui context
+        IMGUI_CHECKVERSION();
+        ImGui::CreateContext();
+        ImGuiIO& io = ImGui::GetIO(); (void)io;
+        //io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
+        //io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
+
+        // Setup Dear ImGui style
+        ImGui::StyleColorsDark();
+        //ImGui::StyleColorsLight();
+
+        // Setup Platform/Renderer backends
+        ImGui_ImplWin32_Init(window);
+        ImGui_ImplDX11_Init(m_pDevice, m_pDeviceContext);
+
+        m_sceneBuffer.light.Color = { 1, 1, 0, 0 };
+        m_sceneBuffer.light.Pos = { 0.2f, 0.7f, 0.2f, 0 };
+        m_sceneBuffer.AmbientColor = { 0.57 * 1.0f / 3.0f, 0.541 * 1.0f / 3.0f, 0.722 * 1.0f / 4.0f, 1.0 };
+    }
+
     //m_pTriangle = new Triangle(m_pDevice);
     m_pCamera = new Camera;
     //m_pCube = new Cube(m_pDevice);
@@ -135,6 +161,10 @@ void Render::terminate()
     delete m_pSkybox;
     delete m_pRect1;
     delete m_pRect2;
+
+    ImGui_ImplDX11_Shutdown();
+    ImGui_ImplWin32_Shutdown();
+    ImGui::DestroyContext();
     
     if (m_pSamplerState != nullptr)
     {
@@ -269,9 +299,56 @@ bool Render::render()
     m_pDeviceContext->OMSetBlendState(m_pTransparentBlendState, nullptr, 0xFFFFFFFF);
     //m_pDeviceContext->OMSetDepthStencilState(m_pTransparentDepthState, 0);
 
-    drawTransparentSorted();
+    //drawTransparentSorted();
     /*m_pRect1->render(m_pDeviceContext, m_pSceneBuffer);
     m_pRect2->render(m_pDeviceContext, m_pSceneBuffer);*/
+
+    // Start the Dear ImGui frame
+    ImGui_ImplDX11_NewFrame();
+    ImGui_ImplWin32_NewFrame();
+    ImGui::NewFrame();
+
+    {
+        bool a = true;
+        ImGui::Begin("Lights");
+
+        ImGui::Checkbox("Show bulbs", &a);
+        ImGui::Checkbox("Use normal maps", &a);
+        ImGui::Checkbox("Show normals", &a);
+
+        //m_sceneBuffer.lightCount.y = m_useNormalMaps ? 1 : 0;
+        //m_sceneBuffer.lightCount.z = m_showNormals ? 1 : 0;
+
+        bool add = ImGui::Button("+");
+        ImGui::SameLine();
+        bool remove = ImGui::Button("-");
+
+        /*if (add && m_sceneBuffer.lightCount.x < 10)
+        {
+            ++m_sceneBuffer.lightCount.x;
+            m_sceneBuffer.lights[m_sceneBuffer.lightCount.x - 1] = Light();
+        }
+        if (remove && m_sceneBuffer.lightCount.x > 0)
+        {
+            --m_sceneBuffer.lightCount.x;
+        }*/
+
+        char buffer[1024];
+        for (int i = 0; i < 1; i++)
+        {
+            ImGui::Text("Light %d", i);
+            sprintf_s(buffer, "Pos %d", i);
+            ImGui::DragFloat3(buffer, (float*)&m_sceneBuffer.light.Pos, 0.1f, -10.0f, 10.0f);
+            sprintf_s(buffer, "Color %d", i);
+            ImGui::ColorEdit3(buffer, (float*)&m_sceneBuffer.light.Color);
+        }
+
+        ImGui::End();
+    }
+
+    // Rendering
+    ImGui::Render();
+    ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
 
     HRESULT result = m_pSwapChain->Present(0, 0);
     assert(SUCCEEDED(result));
@@ -340,6 +417,8 @@ bool Render::update()
     m = DirectX::XMMatrixInverse(nullptr, m);
     m = DirectX::XMMatrixTranspose(m);
     geomBuffer.NormalM = m;
+    geomBuffer.params.x = 64.0f;
+    geomBuffer.params.y = 1;
 
     m_pDeviceContext->UpdateSubresource(m_pGeomBuffer, 0, nullptr, &geomBuffer, 0, 0);
    
@@ -380,13 +459,12 @@ bool Render::update()
     assert(SUCCEEDED(result));
     if (SUCCEEDED(result))
     {
-        SceneBuffer& sceneBuffer = *reinterpret_cast<SceneBuffer*>(subresource.pData);
+        //m_sceneBuffer = reinterpret_cast<SceneBuffer*>(subresource.pData);
 
-        sceneBuffer.VP = DirectX::XMMatrixMultiply(v, p);
-        sceneBuffer.CameraPos = cameraPos;
-        sceneBuffer.light.Color = { 1, 1, 0, 0 };
-        sceneBuffer.light.Pos = { 0.2f, 0.7f, 0.2f, 0 };
-        sceneBuffer.AmbientColor = { 0.57 * 1.0f / 3.0f, 0.541 * 1.0f / 3.0f, 0.722 * 1.0f / 4.0f, 1.0 };
+        m_sceneBuffer.VP = DirectX::XMMatrixMultiply(v, p);
+        m_sceneBuffer.CameraPos = cameraPos;
+        
+        memcpy(subresource.pData, &m_sceneBuffer, sizeof(SceneBuffer));
 
         m_pDeviceContext->Unmap(m_pSceneBuffer, 0);
     }
@@ -483,6 +561,7 @@ HRESULT Render::initScene()
     GeomBuffer geomBuffer;
     geomBuffer.M = DirectX::XMMatrixIdentity();
     geomBuffer.NormalM = DirectX::XMMatrixTranspose(DirectX::XMMatrixInverse(nullptr, DirectX::XMMatrixIdentity()));
+    geomBuffer.params.x = 64;
 
     D3D11_SUBRESOURCE_DATA data;
     data.pSysMem = &geomBuffer;
@@ -500,6 +579,8 @@ HRESULT Render::initScene()
     GeomBuffer geomBuffer2;
     geomBuffer2.M = DirectX::XMMatrixTranslation(2.0f, 0.0f, 2.0f);
     geomBuffer2.NormalM = DirectX::XMMatrixIdentity();
+    geomBuffer2.params.x = 64;
+    //geomBuffer2.params.x = 64;
     data.pSysMem = &geomBuffer2;
 
     result = m_pDevice->CreateBuffer(&geomBufferDesc, &data, &m_pGeomBuffer2);

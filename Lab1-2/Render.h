@@ -26,6 +26,7 @@ struct GeomBuffer
 {
     DirectX::XMMATRIX M;
     DirectX::XMMATRIX NormalM;
+    DirectX::XMFLOAT4 params;
 };
 
 struct Camera
@@ -128,6 +129,8 @@ private:
     Skybox* m_pSkybox;
     TransparentRect* m_pRect1;
     TransparentRect* m_pRect2;
+
+    SceneBuffer m_sceneBuffer;
 
     Camera* m_pCamera;
     double m_angle = 0;
