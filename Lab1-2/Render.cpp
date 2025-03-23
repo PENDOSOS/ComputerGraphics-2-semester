@@ -2,6 +2,10 @@
 
 #include "Render.h"
 
+#include "imgui.h"
+#include "backends/imgui_impl_dx11.h"
+#include "backends/imgui_impl_win32.h"
+
 #pragma comment(lib, "dxgi.lib") // don't work on my computer without these libs
 #pragma comment(lib, "d3d11.lib") // uncomment if it doesn't launch
 
@@ -114,6 +118,29 @@ bool Render::init(HWND window)
     if (!SUCCEEDED(result))
         return result;
 
+    if (SUCCEEDED(result))
+    {
+        // Setup Dear ImGui context
+        IMGUI_CHECKVERSION();
+        ImGui::CreateContext();
+        ImGuiIO& io = ImGui::GetIO(); (void)io;
+        //io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
+        //io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
+
+        // Setup Dear ImGui style
+        ImGui::StyleColorsDark();
+        //ImGui::StyleColorsLight();
+
+        // Setup Platform/Renderer backends
+        ImGui_ImplWin32_Init(window);
+        ImGui_ImplDX11_Init(m_pDevice, m_pDeviceContext);
+
+        m_sceneBuffer.SceneParams.x = 1;
+        m_sceneBuffer.lights[0].Color = {1, 1, 0, 0};
+        m_sceneBuffer.lights[0].Pos = {0.2f, 0.7f, 0.2f, 0};
+        m_sceneBuffer.AmbientColor = { 0.57 * 1.0f / 3.0f, 0.541 * 1.0f / 3.0f, 0.722 * 1.0f / 4.0f, 1.0 };
+    }
+
     //m_pTriangle = new Triangle(m_pDevice);
     m_pCamera = new Camera;
     //m_pCube = new Cube(m_pDevice);
@@ -123,11 +150,23 @@ bool Render::init(HWND window)
     m_pRect1 = new TransparentRect(m_pDevice, 1.0f, 0, 0, 128);
     m_pRect2 = new TransparentRect(m_pDevice, -1.0f, 128, 0, 0);
 
+    lights.resize(3);
+    for (int i = 0; i < 3; i++)
+    {
+        LightModel* temp = new LightModel(m_pDevice);
+        lights[i] = temp;
+    }
+
     return SUCCEEDED(result);
 }
 
 void Render::terminate()
 {
+    for (int i = 0; i < 3; i++)
+    {
+        delete lights[i];
+    }
+    lights.clear();
     delete m_pCamera;
     //delete m_pTriangle;
     delete m_pCube;
@@ -135,11 +174,24 @@ void Render::terminate()
     delete m_pSkybox;
     delete m_pRect1;
     delete m_pRect2;
+
+    ImGui_ImplDX11_Shutdown();
+    ImGui_ImplWin32_Shutdown();
+    ImGui::DestroyContext();
     
     if (m_pSamplerState != nullptr)
     {
         m_pSamplerState->Release();
         m_pSamplerState = nullptr;
+    }
+
+    for (int i = 0; i < 3; i++)
+    {
+        if (m_pLightSourceGeomBuffers[i] != nullptr)
+        {
+            m_pLightSourceGeomBuffers[i]->Release();
+            m_pLightSourceGeomBuffers[i] = nullptr;
+        }
     }
 
     if (m_pGeomBuffer2 != nullptr)
@@ -265,13 +317,63 @@ bool Render::render()
 
     m_pSkybox->render(m_pDeviceContext, m_width, m_height, m_pSceneBuffer, m_pSamplerState);
 
+    for (int i = 0; i < m_sceneBuffer.SceneParams.x; i++)
+    {
+        lights[i]->render(m_pDeviceContext, m_pSceneBuffer, m_pLightSourceGeomBuffers[i]);
+    }
+
     m_pDeviceContext->OMSetDepthStencilState(m_pTransparentDepthState, 0);
     m_pDeviceContext->OMSetBlendState(m_pTransparentBlendState, nullptr, 0xFFFFFFFF);
     //m_pDeviceContext->OMSetDepthStencilState(m_pTransparentDepthState, 0);
 
     drawTransparentSorted();
-    /*m_pRect1->render(m_pDeviceContext, m_pSceneBuffer);
-    m_pRect2->render(m_pDeviceContext, m_pSceneBuffer);*/
+    //m_pRect1->render(m_pDeviceContext, m_pSceneBuffer);
+    //m_pRect2->render(m_pDeviceContext, m_pSceneBuffer);
+
+    // Start the Dear ImGui frame
+    ImGui_ImplDX11_NewFrame();
+    ImGui_ImplWin32_NewFrame();
+    ImGui::NewFrame();
+
+    {
+        ImGui::Begin("Lights (3 maximum)");
+
+        ImGui::Checkbox("Use normal maps", &m_useNormalMap);
+        ImGui::Checkbox("Show normals", &m_showNormals);
+
+        m_sceneBuffer.SceneParams.y = m_useNormalMap ? 1 : 0;
+        m_sceneBuffer.SceneParams.z = m_showNormals ? 1 : 0;
+
+        bool add = ImGui::Button("+");
+        ImGui::SameLine();
+        bool remove = ImGui::Button("-");
+
+        if (add && m_sceneBuffer.SceneParams.x < 3)
+        {
+            ++m_sceneBuffer.SceneParams.x;
+            m_sceneBuffer.lights[m_sceneBuffer.SceneParams.x - 1] = Light();
+        }
+        if (remove && m_sceneBuffer.SceneParams.x > 0)
+        {
+            --m_sceneBuffer.SceneParams.x;
+        }
+
+        char buffer[1024];
+        for (int i = 0; i < m_sceneBuffer.SceneParams.x; i++)
+        {
+            ImGui::Text("Light %d", i);
+            sprintf_s(buffer, "Pos %d", i);
+            ImGui::DragFloat3(buffer, (float*)&m_sceneBuffer.lights[i].Pos, 0.1f, -10.0f, 10.0f);
+            sprintf_s(buffer, "Color %d", i);
+            ImGui::ColorEdit3(buffer, (float*)&m_sceneBuffer.lights[i].Color);
+        }
+
+        ImGui::End();
+    }
+
+    // Rendering
+    ImGui::Render();
+    ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
 
     HRESULT result = m_pSwapChain->Present(0, 0);
     assert(SUCCEEDED(result));
@@ -337,9 +439,14 @@ bool Render::update()
     DirectX::XMMATRIX m = DirectX::XMMatrixRotationAxis(DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 1.0f), -(float)m_angle);
 
     geomBuffer.M = m;
+    m = DirectX::XMMatrixInverse(nullptr, m);
+    m = DirectX::XMMatrixTranspose(m);
+    geomBuffer.NormalM = m;
+    geomBuffer.params.x = 64.0f;
+    geomBuffer.params.y = 1;
 
     m_pDeviceContext->UpdateSubresource(m_pGeomBuffer, 0, nullptr, &geomBuffer, 0, 0);
-
+   
     m_prevSec = usec;
 
     // Setup camera
@@ -377,12 +484,24 @@ bool Render::update()
     assert(SUCCEEDED(result));
     if (SUCCEEDED(result))
     {
-        SceneBuffer& sceneBuffer = *reinterpret_cast<SceneBuffer*>(subresource.pData);
+        //m_sceneBuffer = reinterpret_cast<SceneBuffer*>(subresource.pData);
 
-        sceneBuffer.VP = DirectX::XMMatrixMultiply(v, p);
-        sceneBuffer.CameraPos = cameraPos;
+        m_sceneBuffer.VP = DirectX::XMMatrixMultiply(v, p);
+        m_sceneBuffer.CameraPos = cameraPos;
+        
+        memcpy(subresource.pData, &m_sceneBuffer, sizeof(SceneBuffer));
 
         m_pDeviceContext->Unmap(m_pSceneBuffer, 0);
+    }
+
+    for (int i = 0; i < m_sceneBuffer.SceneParams.x; i++)
+    {
+        GeomBuffer lightSourceGB;
+        lightSourceGB.M = DirectX::XMMatrixTranslation(m_sceneBuffer.lights[i].Pos.x, m_sceneBuffer.lights[i].Pos.y, m_sceneBuffer.lights[i].Pos.z);
+        lightSourceGB.NormalM = DirectX::XMMatrixIdentity();
+        lightSourceGB.params.x = i;
+
+        m_pDeviceContext->UpdateSubresource(m_pLightSourceGeomBuffers[i], 0, nullptr, &lightSourceGB, 0, 0);
     }
 
     return SUCCEEDED(result);
@@ -476,6 +595,8 @@ HRESULT Render::initScene()
 
     GeomBuffer geomBuffer;
     geomBuffer.M = DirectX::XMMatrixIdentity();
+    geomBuffer.NormalM = DirectX::XMMatrixTranspose(DirectX::XMMatrixInverse(nullptr, DirectX::XMMatrixIdentity()));
+    geomBuffer.params.x = 64;
 
     D3D11_SUBRESOURCE_DATA data;
     data.pSysMem = &geomBuffer;
@@ -492,6 +613,9 @@ HRESULT Render::initScene()
 
     GeomBuffer geomBuffer2;
     geomBuffer2.M = DirectX::XMMatrixTranslation(2.0f, 0.0f, 2.0f);
+    geomBuffer2.NormalM = DirectX::XMMatrixIdentity();
+    geomBuffer2.params.x = 64;
+    //geomBuffer2.params.x = 64;
     data.pSysMem = &geomBuffer2;
 
     result = m_pDevice->CreateBuffer(&geomBufferDesc, &data, &m_pGeomBuffer2);
@@ -501,6 +625,24 @@ HRESULT Render::initScene()
         return result;
     }
     result = SetResourceName(m_pGeomBuffer2, "geom buffer 2");
+
+    D3D11_BUFFER_DESC lightGeomBufferDesc = {};
+    lightGeomBufferDesc.ByteWidth = sizeof(GeomBuffer);
+    lightGeomBufferDesc.Usage = D3D11_USAGE_DEFAULT;
+    lightGeomBufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+    lightGeomBufferDesc.CPUAccessFlags = 0;
+    lightGeomBufferDesc.MiscFlags = 0;
+    lightGeomBufferDesc.StructureByteStride = 0;
+
+    for (int i = 0; i < 3; i++)
+    {
+        result = m_pDevice->CreateBuffer(&lightGeomBufferDesc, nullptr, &m_pLightSourceGeomBuffers[i]);
+        assert(SUCCEEDED(result));
+        if (!SUCCEEDED(result))
+        {
+            return result;
+        }
+    }
 
     if (SUCCEEDED(result))
     {
@@ -601,7 +743,7 @@ HRESULT Render::initDepthStencil()
         return result;
     }
 
-    result = SetResourceName(m_pSamplerState, "depth buffer");
+    result = SetResourceName(m_pDepthBuffer, "depth buffer");
 
     result = m_pDevice->CreateDepthStencilView(m_pDepthBuffer, nullptr, &m_pDepthBufferDSV);
 
@@ -610,7 +752,7 @@ HRESULT Render::initDepthStencil()
         return result;
     }
 
-    result = SetResourceName(m_pSamplerState, "depth buffer view");
+    result = SetResourceName(m_pDepthBufferDSV, "depth buffer view");
 
     return result;
 }

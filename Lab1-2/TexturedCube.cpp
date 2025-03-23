@@ -2,8 +2,14 @@
 
 struct CubeVertex
 {
-	float x, y, z;
-	float u, v;
+    DirectX::XMFLOAT3 pos;
+	//float x, y, z;
+    DirectX::XMFLOAT3 tan;
+    //float norm_x, norm_y, norm_z;
+    DirectX::XMFLOAT3 norm;
+    /*float tan_x, tan_y, tan_z;*/
+    DirectX::XMFLOAT2 uv;
+    /*float u, v;*/
 };
 
 struct GeomBuffer
@@ -12,12 +18,18 @@ struct GeomBuffer
     DirectX::XMFLOAT3 Size;
 };
 
+struct LightParams
+{
+    DirectX::XMFLOAT4 Params;
+};
+
 TexturedCube::TexturedCube(ID3D11Device* device)
 	: m_pDevice(device)
 	, m_pInputLayout(nullptr)
 	, m_pPixelShader(nullptr)
 	, m_pVertexBuffer(nullptr)
 	, m_pVertexShader(nullptr)
+    , m_pLightingParamBuffer(nullptr)
 {
 	initBuffers();
 	initInputLayout();
@@ -33,13 +45,14 @@ void TexturedCube::render(ID3D11DeviceContext* context, ID3D11Buffer* sceneBuffe
 {
     if (m_pSRV)
     {
-        UINT stride = { 20 };
+        UINT stride = { 44 };
         UINT offset = { 0 };
 
         context->IASetIndexBuffer(m_pIndexBuffer, DXGI_FORMAT_R16_UINT, 0);
         context->VSSetShader(m_pVertexShader, nullptr, 0);
         context->PSSetShader(m_pPixelShader, nullptr, 0);
         context->PSSetShaderResources(0, 1, &m_pSRV);
+        context->PSSetShaderResources(1, 1, &m_pNormalSRV);
         context->PSSetSamplers(0, 1, &samplerState);
         context->IASetInputLayout(m_pInputLayout);
 
@@ -48,6 +61,8 @@ void TexturedCube::render(ID3D11DeviceContext* context, ID3D11Buffer* sceneBuffe
 
         context->VSSetConstantBuffers(0, 1, &sceneBuffer);
         context->VSSetConstantBuffers(1, 1, &geomBuffer);
+        context->PSSetConstantBuffers(0, 1, &sceneBuffer);
+        context->PSSetConstantBuffers(1, 1, &geomBuffer);
 
         context->DrawIndexed(36, 0, 0);
     }
@@ -59,35 +74,35 @@ bool TexturedCube::initBuffers()
     static const CubeVertex cubeVertices[24] = 
     {
         // Bottom face
-        {-0.5, -0.5,  0.5, 0, 1},
-        { 0.5, -0.5,  0.5, 1, 1},
-        { 0.5, -0.5, -0.5, 1, 0},
-        {-0.5, -0.5, -0.5, 0, 0},
+        {{-0.5, -0.5,  0.5}, {1, 0, 0}, {0, -1, 0}, {0, 1}},
+        {{ 0.5, -0.5,  0.5}, {1, 0, 0}, {0, -1, 0}, {1, 1}},
+        {{ 0.5, -0.5, -0.5}, {1, 0, 0}, {0, -1, 0}, {1, 0}},
+        {{-0.5, -0.5, -0.5}, {1, 0, 0}, {0, -1, 0}, {0, 0}},
         // Top face
-        {-0.5,  0.5, -0.5, 0, 1},
-        { 0.5,  0.5, -0.5, 1, 1},
-        { 0.5,  0.5,  0.5, 1, 0},
-        {-0.5,  0.5,  0.5, 0, 0},
+        {{-0.5,  0.5, -0.5}, {1, 0, 0}, {0, 1, 0}, {0, 1}},
+        {{ 0.5,  0.5, -0.5}, {1, 0, 0}, {0, 1, 0}, {1, 1}},
+        {{ 0.5,  0.5,  0.5}, {1, 0, 0}, {0, 1, 0}, {1, 0}},
+        {{-0.5,  0.5,  0.5}, {1, 0, 0}, {0, 1, 0}, {0, 0}},
         // Front face
-        { 0.5, -0.5, -0.5, 0, 1},
-        { 0.5, -0.5,  0.5, 1, 1},
-        { 0.5,  0.5,  0.5, 1, 0},
-        { 0.5,  0.5, -0.5, 0, 0},
+        {{ 0.5, -0.5, -0.5}, {0, 0, 1}, {1, 0, 0}, {0, 1}},
+        {{ 0.5, -0.5,  0.5}, {0, 0, 1}, {1, 0, 0}, {1, 1}},
+        {{ 0.5,  0.5,  0.5}, {0, 0, 1}, {1, 0, 0}, {1, 0}},
+        {{ 0.5,  0.5, -0.5}, {0, 0, 1}, {1, 0, 0}, {0, 0}},
         // Back face
-        {-0.5, -0.5,  0.5, 0, 1},
-        {-0.5, -0.5, -0.5, 1, 1},
-        {-0.5,  0.5, -0.5, 1, 0},
-        {-0.5,  0.5,  0.5, 0, 0},
+        {{-0.5, -0.5,  0.5}, {0, 0, -1}, {-1, 0, 0}, {0, 1}},
+        {{-0.5, -0.5, -0.5}, {0, 0, -1}, {-1, 0, 0}, {1, 1}},
+        {{-0.5,  0.5, -0.5}, {0, 0, -1}, {-1, 0, 0}, {1, 0}},
+        {{-0.5,  0.5,  0.5}, {0, 0, -1}, {-1, 0, 0}, {0, 0}},
         // Left face
-        { 0.5, -0.5,  0.5, 0, 1},
-        {-0.5, -0.5,  0.5, 1, 1},
-        {-0.5,  0.5,  0.5, 1, 0},
-        { 0.5,  0.5,  0.5, 0, 0},
+        {{ 0.5, -0.5,  0.5}, {-1, 0, 0}, {0, 0, 1}, {0, 1}},
+        {{-0.5, -0.5,  0.5}, {-1, 0, 0}, {0, 0, 1}, {1, 1}},
+        {{-0.5,  0.5,  0.5}, {-1, 0, 0}, {0, 0, 1}, {1, 0}},
+        {{ 0.5,  0.5,  0.5}, {-1, 0, 0}, {0, 0, 1}, {0, 0}},
         // Right face
-        {-0.5, -0.5, -0.5, 0, 1},
-        { 0.5, -0.5, -0.5, 1, 1},
-        { 0.5,  0.5, -0.5, 1, 0},
-        {-0.5,  0.5, -0.5, 0, 0}
+        {{-0.5, -0.5, -0.5}, {1, 0, 0}, {0, 0, -1}, {0, 1}},
+        {{ 0.5, -0.5, -0.5}, {1, 0, 0}, {0, 0, -1}, {1, 1}},
+        {{ 0.5,  0.5, -0.5}, {1, 0, 0}, {0, 0, -1}, {1, 0}},
+        {{-0.5,  0.5, -0.5}, {1, 0, 0}, {0, 0, -1}, {0, 0}}
     };
     static const UINT16 indices[36] = 
     {
@@ -137,6 +152,27 @@ bool TexturedCube::initBuffers()
 
     result = SetResourceName(m_pIndexBuffer, "textured cube index buffer");
 
+    D3D11_BUFFER_DESC lightParamsBufferDesc = {};
+    lightParamsBufferDesc.ByteWidth = sizeof(LightParams);
+    lightParamsBufferDesc.Usage = D3D11_USAGE_IMMUTABLE;
+    lightParamsBufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+    lightParamsBufferDesc.CPUAccessFlags = 0;
+    lightParamsBufferDesc.MiscFlags = 0;
+    lightParamsBufferDesc.StructureByteStride = 0;
+
+    LightParams params;
+    params.Params = { 64.0f, 0.0f, 0, 0 };
+
+    D3D11_SUBRESOURCE_DATA lightParamsData = {};
+    lightParamsData.pSysMem = &params;
+    lightParamsData.SysMemPitch = sizeof(LightParams);
+    result = m_pDevice->CreateBuffer(&lightParamsBufferDesc, &lightParamsData, &m_pLightingParamBuffer);
+
+    if (FAILED(result))
+        return false;
+
+    result = SetResourceName(m_pLightingParamBuffer, "lighting params buffer");
+
     return true;
 }
 
@@ -145,7 +181,9 @@ bool TexturedCube::initInputLayout()
     D3D11_INPUT_ELEMENT_DESC inputDesc[] =
     {
         {"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
-        {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0}
+        {"TANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0},
+        {"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 24, D3D11_INPUT_PER_VERTEX_DATA, 0},
+        {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 36, D3D11_INPUT_PER_VERTEX_DATA, 0},
     };
 
     HRESULT result = S_OK;
@@ -153,16 +191,16 @@ bool TexturedCube::initInputLayout()
     ID3DBlob* pVertexShaderCode = nullptr;
     if (SUCCEEDED(result))
     {
-        result = compileShader(m_pDevice, L"resources/shaders/textured_cube_vs.hlsl", {}, shader_stage::Vertex, (ID3D11DeviceChild**)&m_pVertexShader, &pVertexShaderCode);
+        result = compileShader(m_pDevice, L"resources/shaders/lighted_cube_vs.hlsl", {}, shader_stage::Vertex, (ID3D11DeviceChild**)&m_pVertexShader, &pVertexShaderCode);
     }
     if (SUCCEEDED(result))
     {
-        result = compileShader(m_pDevice, L"resources/shaders/textured_cube_ps.hlsl", {}, shader_stage::Pixel, (ID3D11DeviceChild**)&m_pPixelShader);
+        result = compileShader(m_pDevice, L"resources/shaders/lighted_cube_ps.hlsl", {}, shader_stage::Pixel, (ID3D11DeviceChild**)&m_pPixelShader);
     }
 
     if (SUCCEEDED(result))
     {
-        result = m_pDevice->CreateInputLayout(inputDesc, 2, pVertexShaderCode->GetBufferPointer(), pVertexShaderCode->GetBufferSize(), &m_pInputLayout);
+        result = m_pDevice->CreateInputLayout(inputDesc, 4, pVertexShaderCode->GetBufferPointer(), pVertexShaderCode->GetBufferSize(), &m_pInputLayout);
         if (SUCCEEDED(result))
         {
             result = SetResourceName(m_pInputLayout, "input layout");
@@ -182,9 +220,21 @@ bool TexturedCube::initTexture()
 {
     HRESULT result = DirectX::CreateDDSTextureFromFile(
         m_pDevice,
-        L"resources/textures/logo.dds",
+        L"resources/textures/tiles.dds",
         nullptr,
         &m_pSRV
+    );
+
+    if (FAILED(result))
+    {
+        return false;
+    }
+
+    result = DirectX::CreateDDSTextureFromFile(
+        m_pDevice,
+        L"resources/textures/tiles_normal.dds",
+        nullptr,
+        &m_pNormalSRV
     );
 
     if (FAILED(result))
@@ -197,6 +247,12 @@ bool TexturedCube::initTexture()
 
 void TexturedCube::terminate()
 {
+    if (m_pNormalSRV != nullptr)
+    {
+        m_pNormalSRV->Release();
+        m_pNormalSRV = nullptr;
+    }
+
     if (m_pSRV != nullptr)
     {
         m_pSRV->Release();
@@ -219,6 +275,12 @@ void TexturedCube::terminate()
     {
         m_pPixelShader->Release();
         m_pPixelShader = nullptr;
+    }
+
+    if (m_pLightingParamBuffer != nullptr)
+    {
+        m_pLightingParamBuffer->Release();
+        m_pLightingParamBuffer = nullptr;
     }
 
     if (m_pVertexBuffer != nullptr)

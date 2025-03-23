@@ -5,18 +5,30 @@
 #include "TexturedCube.h"
 #include "Skybox.h"
 #include "TransparentRect.h"
+#include "LightModel.h"
 
 #define PI 3.14159265358979323846
+
+struct Light
+{
+    DirectX::XMFLOAT4 Pos;
+    DirectX::XMFLOAT4 Color;
+};
 
 struct SceneBuffer
 {
     DirectX::XMMATRIX VP;
+    DirectX::XMINT4 SceneParams; // x - light count
+    Light lights[3];
+    DirectX::XMFLOAT4 AmbientColor;
     DirectX::XMFLOAT3 CameraPos;
 };
 
 struct GeomBuffer
 {
     DirectX::XMMATRIX M;
+    DirectX::XMMATRIX NormalM;
+    DirectX::XMFLOAT4 params;
 };
 
 struct Camera
@@ -60,7 +72,14 @@ public:
         , m_pBlendState(nullptr)
         , m_pTransparentDepthState(nullptr)
         , m_pTransparentBlendState(nullptr)
-    {}
+        , m_useNormalMap(true)
+        , m_showNormals(false)
+    {
+        for (int i = 0; i < 3; i++)
+        {
+            m_pLightSourceGeomBuffers[i] = nullptr;
+        }
+    }
 
     ~Render() { terminate(); }
 
@@ -106,6 +125,7 @@ private:
     ID3D11Buffer* m_pSceneBuffer;
     ID3D11Buffer* m_pGeomBuffer;
     ID3D11Buffer* m_pGeomBuffer2;
+    ID3D11Buffer* m_pLightSourceGeomBuffers[3];
 
     ID3D11SamplerState* m_pSamplerState;
 
@@ -120,6 +140,8 @@ private:
     TransparentRect* m_pRect1;
     TransparentRect* m_pRect2;
 
+    SceneBuffer m_sceneBuffer;
+
     Camera* m_pCamera;
     double m_angle = 0;
 
@@ -130,5 +152,9 @@ private:
     int m_mousePosX;
     int m_mousePosY;
     bool m_isButtonPressed;
+    bool m_useNormalMap;
+    bool m_showNormals;
+
+    std::vector<LightModel*> lights;
 };
 

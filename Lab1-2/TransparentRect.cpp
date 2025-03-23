@@ -20,7 +20,7 @@ void TransparentRect::render(ID3D11DeviceContext* context, ID3D11Buffer* sceneBu
 {
     context->IASetIndexBuffer(m_pIndexBuffer, DXGI_FORMAT_R16_UINT, 0);
     ID3D11Buffer* vertexBuffers[] = { m_pVertexBuffer };
-    UINT strides[] = { 16 };
+    UINT strides[] = { 28 };
     UINT offsets[] = { 0 };
     context->IASetVertexBuffers(0, 1, &m_pVertexBuffer, strides, offsets);
     context->IASetInputLayout(m_pInputLayout);
@@ -36,10 +36,10 @@ bool TransparentRect::initBuffers()
 {
     const RectVertex Vertices[] =
     {
-        { { 0.0, -1.0, -1.0 }, RGB(m_colorRed, m_colorGreen, m_colorBlue) },
-        { { 0.0,  1.0, -1.0 }, RGB(m_colorRed, m_colorGreen, m_colorBlue) },
-        { { 0.0,  1.0,  1.0 }, RGB(m_colorRed, m_colorGreen, m_colorBlue) },
-        { { 0.0, -1.0,  1.0 }, RGB(m_colorRed, m_colorGreen, m_colorBlue) }
+        { { 0.0, -1.0, -1.0 }, RGB(m_colorRed, m_colorGreen, m_colorBlue), {0.5,0,0} },
+        { { 0.0,  1.0, -1.0 }, RGB(m_colorRed, m_colorGreen, m_colorBlue), {0.5,0,0} },
+        { { 0.0,  1.0,  1.0 }, RGB(m_colorRed, m_colorGreen, m_colorBlue), {0.5,0,0} },
+        { { 0.0, -1.0,  1.0 }, RGB(m_colorRed, m_colorGreen, m_colorBlue), {0.5,0,0} }
     };
 
     coords.resize(4);
@@ -123,7 +123,8 @@ bool TransparentRect::initInputLayout()
     D3D11_INPUT_ELEMENT_DESC inputDesc[] =
     {
         {"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
-        {"COLOR", 0, DXGI_FORMAT_R8G8B8A8_UNORM, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0}
+        {"COLOR", 0, DXGI_FORMAT_R8G8B8A8_UNORM, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0},
+        {"ALPHA", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 16, D3D11_INPUT_PER_VERTEX_DATA, 0},
     };
 
     HRESULT result = S_OK;
@@ -140,7 +141,7 @@ bool TransparentRect::initInputLayout()
 
     if (SUCCEEDED(result))
     {
-        result = m_pDevice->CreateInputLayout(inputDesc, 2, pVertexShaderCode->GetBufferPointer(), pVertexShaderCode->GetBufferSize(), &m_pInputLayout);
+        result = m_pDevice->CreateInputLayout(inputDesc, 3, pVertexShaderCode->GetBufferPointer(), pVertexShaderCode->GetBufferSize(), &m_pInputLayout);
         if (SUCCEEDED(result))
         {
             result = SetResourceName(m_pInputLayout, "rect input layout");

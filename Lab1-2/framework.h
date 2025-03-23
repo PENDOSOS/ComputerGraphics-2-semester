@@ -26,6 +26,8 @@
 #include <algorithm>
 #include "thirdparty/DDSTextureLoader11.h"
 
+#define PI 3.14159265358979323846
+
 enum shader_stage
 {
 	Vertex,
@@ -106,8 +108,55 @@ inline bool readFileContent(LPCTSTR filename, std::vector<char>& data)
     return error == NO_ERROR;
 }
 
+class D3DInclude : public ID3DInclude
+{
+    STDMETHOD(Open)(THIS_ D3D_INCLUDE_TYPE IncludeType, LPCSTR pFileName, LPCVOID pParentData, LPCVOID* ppData, UINT* pBytes)
+    {
+        FILE* pFile = nullptr;
+        fopen_s(&pFile, pFileName, "rb");
+        assert(pFile != nullptr);
+        if (pFile == nullptr)
+        {
+            return E_FAIL;
+        }
+
+        fseek(pFile, 0, SEEK_END);
+        long long size = _ftelli64(pFile);
+        fseek(pFile, 0, SEEK_SET);
+
+        VOID* pData = malloc(size);
+        if (pData == nullptr)
+        {
+            fclose(pFile);
+            return E_FAIL;
+        }
+
+        size_t rd = fread(pData, 1, size, pFile);
+        assert(rd == (size_t)size);
+
+        if (rd != (size_t)size)
+        {
+            fclose(pFile);
+            free(pData);
+            return E_FAIL;
+        }
+
+        *ppData = pData;
+        *pBytes = (UINT)size;
+
+        return S_OK;
+    }
+    STDMETHOD(Close)(THIS_ LPCVOID pData)
+    {
+        free(const_cast<void*>(pData));
+        return S_OK;
+    }
+};
+
 inline bool compileShader(ID3D11Device* device, LPCTSTR srcFilename, const std::vector<LPCSTR>& defines, const shader_stage& stage, ID3D11DeviceChild** ppShader, ID3DBlob** ppShaderBinary = nullptr)
 {
+    D3DInclude includeHandler;
+
     std::vector<char> data;
     bool res = readFileContent(srcFilename, data);
     if (res)
@@ -134,10 +183,10 @@ inline bool compileShader(ID3D11Device* device, LPCTSTR srcFilename, const std::
         case Vertex:
         {
             ID3D11VertexShader* pVertexShader = nullptr;
-            result = D3DCompile(data.data(), data.size(), "", nullptr, nullptr, "VS", "vs_5_0", flags, 0, &pCode, &pErrMsg);
+            result = D3DCompile(data.data(), data.size(), "", macros.data(), &includeHandler, "VS", "vs_5_0", flags, 0, &pCode, &pErrMsg);
             if (!SUCCEEDED(result))
             {
-                return false;
+                break;
             }
             result = device->CreateVertexShader(pCode->GetBufferPointer(), pCode->GetBufferSize(), nullptr, &pVertexShader);
             if (SUCCEEDED(result))
@@ -149,10 +198,10 @@ inline bool compileShader(ID3D11Device* device, LPCTSTR srcFilename, const std::
         case Pixel:
         {
             ID3D11PixelShader* pPixelShader = nullptr;
-            result = D3DCompile(data.data(), data.size(), "", nullptr, nullptr, "PS", "ps_5_0", flags, 0, &pCode, &pErrMsg);
+            result = D3DCompile(data.data(), data.size(), "", macros.data(), &includeHandler, "PS", "ps_5_0", flags, 0, &pCode, &pErrMsg);
             if (!SUCCEEDED(result))
             {
-                return false;
+                break;
             }
             result = device->CreatePixelShader(pCode->GetBufferPointer(), pCode->GetBufferSize(), nullptr, &pPixelShader);
             if (SUCCEEDED(result))
