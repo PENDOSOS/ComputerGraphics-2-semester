@@ -5,6 +5,7 @@
 #include "TexturedCube.h"
 #include "Skybox.h"
 #include "TransparentRect.h"
+#include "LightModel.h"
 
 #define PI 3.14159265358979323846
 
@@ -153,5 +154,7 @@ private:
     bool m_isButtonPressed;
     bool m_useNormalMap;
     bool m_showNormals;
+
+    std::vector<LightModel*> lights;
 };
 

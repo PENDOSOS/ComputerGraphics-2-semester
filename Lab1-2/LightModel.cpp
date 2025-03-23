@@ -8,8 +8,8 @@ LightModel::LightModel(ID3D11Device* device)
     , m_pVertexBuffer(nullptr)
     , m_pVertexShader(nullptr)
 {
-	bool initBuffers();
-	bool initInputLayout();
+	initBuffers();
+	initInputLayout();
 }
 
 LightModel::~LightModel()
@@ -17,7 +17,7 @@ LightModel::~LightModel()
 	terminate();
 }
 
-void LightModel::render(ID3D11DeviceContext* context, UINT width, UINT height, ID3D11Buffer* sceneBuffer, ID3D11Buffer* geomBuffer)
+void LightModel::render(ID3D11DeviceContext* context, ID3D11Buffer* sceneBuffer, ID3D11Buffer* geomBuffer)
 {
     context->IASetIndexBuffer(m_pIndexBuffer, DXGI_FORMAT_R16_UINT, 0);
     ID3D11Buffer* vertexBuffers[] = { m_pVertexBuffer };
@@ -30,18 +30,18 @@ void LightModel::render(ID3D11DeviceContext* context, UINT width, UINT height, I
     context->VSSetConstantBuffers(0, 1, &sceneBuffer);
     context->VSSetConstantBuffers(1, 1, &geomBuffer);
     context->PSSetShader(m_pPixelShader, nullptr, 0);
-    context->DrawIndexed(36, 0, 0);
+    context->DrawIndexed(indexCount, 0, 0);
 }
 
 bool LightModel::initBuffers()
 {
-    static const size_t SphereSteps = 10;
+    static const size_t SphereSteps = 8;
 
     std::vector<DirectX::XMFLOAT3> sphereVertices;
     std::vector<UINT16> indices;
 
-    size_t indexCount = (SphereSteps + 1) * (SphereSteps + 1);
-    size_t vertexCount = SphereSteps * SphereSteps * 6;
+    vertexCount = (SphereSteps + 1) * (SphereSteps + 1);
+    indexCount = SphereSteps * SphereSteps * 6;
 
     sphereVertices.resize(vertexCount);
     indices.resize(indexCount);
@@ -88,7 +88,7 @@ bool LightModel::initBuffers()
     }
 
     D3D11_BUFFER_DESC vertexBufferrDesc = {};
-    vertexBufferrDesc.ByteWidth = sizeof(sphereVertices);
+    vertexBufferrDesc.ByteWidth = sphereVertices.size() * sizeof(DirectX::XMFLOAT3);
     vertexBufferrDesc.Usage = D3D11_USAGE_IMMUTABLE;//D3D11_USAGE_DEFAULT;
     vertexBufferrDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
     vertexBufferrDesc.CPUAccessFlags = 0;
@@ -97,7 +97,7 @@ bool LightModel::initBuffers()
 
     D3D11_SUBRESOURCE_DATA vertexData = {};
     vertexData.pSysMem = sphereVertices.data();
-    vertexData.SysMemPitch = sizeof(sphereVertices);
+    vertexData.SysMemPitch = sphereVertices.size() * sizeof(DirectX::XMFLOAT3);
     HRESULT result = m_pDevice->CreateBuffer(&vertexBufferrDesc, &vertexData, &m_pVertexBuffer);
 
     if (!SUCCEEDED(result))
@@ -106,7 +106,7 @@ bool LightModel::initBuffers()
     result = SetResourceName(m_pVertexBuffer, "light source vertex buffer");
 
     D3D11_BUFFER_DESC indexBufferDesc = {};
-    indexBufferDesc.ByteWidth = sizeof(indices);
+    indexBufferDesc.ByteWidth = UINT16(indices.size() * sizeof(UINT16));
     indexBufferDesc.Usage = D3D11_USAGE_IMMUTABLE;
     indexBufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
     indexBufferDesc.CPUAccessFlags = 0;
@@ -115,7 +115,7 @@ bool LightModel::initBuffers()
 
     D3D11_SUBRESOURCE_DATA indexData = {};
     indexData.pSysMem = indices.data();
-    indexData.SysMemPitch = sizeof(indices);
+    indexData.SysMemPitch = UINT16(indices.size() * sizeof(UINT16));
     result = m_pDevice->CreateBuffer(&indexBufferDesc, &indexData, &m_pIndexBuffer);
 
     if (!SUCCEEDED(result))
@@ -138,16 +138,16 @@ bool LightModel::initInputLayout()
     ID3DBlob* pVertexShaderCode = nullptr;
     if (SUCCEEDED(result))
     {
-        result = compileShader(m_pDevice, L"resources/shaders/cube_vs.hlsl", {}, shader_stage::Vertex, (ID3D11DeviceChild**)&m_pVertexShader, &pVertexShaderCode);
+        result = compileShader(m_pDevice, L"resources/shaders/light_source_vs.hlsl", {}, shader_stage::Vertex, (ID3D11DeviceChild**)&m_pVertexShader, &pVertexShaderCode);
     }
     if (SUCCEEDED(result))
     {
-        result = compileShader(m_pDevice, L"resources/shaders/cube_ps.hlsl", {}, shader_stage::Pixel, (ID3D11DeviceChild**)&m_pPixelShader);
+        result = compileShader(m_pDevice, L"resources/shaders/light_source_ps.hlsl", {}, shader_stage::Pixel, (ID3D11DeviceChild**)&m_pPixelShader);
     }
 
     if (SUCCEEDED(result))
     {
-        result = m_pDevice->CreateInputLayout(inputDesc, 2, pVertexShaderCode->GetBufferPointer(), pVertexShaderCode->GetBufferSize(), &m_pInputLayout);
+        result = m_pDevice->CreateInputLayout(inputDesc, 1, pVertexShaderCode->GetBufferPointer(), pVertexShaderCode->GetBufferSize(), &m_pInputLayout);
         if (SUCCEEDED(result))
         {
             result = SetResourceName(m_pInputLayout, "InputLayout");
