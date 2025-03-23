@@ -26,6 +26,8 @@
 #include <algorithm>
 #include "thirdparty/DDSTextureLoader11.h"
 
+#define PI 3.14159265358979323846
+
 enum shader_stage
 {
 	Vertex,

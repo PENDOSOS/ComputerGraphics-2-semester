@@ -135,8 +135,9 @@ bool Render::init(HWND window)
         ImGui_ImplWin32_Init(window);
         ImGui_ImplDX11_Init(m_pDevice, m_pDeviceContext);
 
-        m_sceneBuffer.light.Color = { 1, 1, 0, 0 };
-        m_sceneBuffer.light.Pos = { 0.2f, 0.7f, 0.2f, 0 };
+        m_sceneBuffer.SceneParams.x = 1;
+        m_sceneBuffer.lights[0].Color = {1, 1, 0, 0};
+        m_sceneBuffer.lights[0].Pos = {0.2f, 0.7f, 0.2f, 0};
         m_sceneBuffer.AmbientColor = { 0.57 * 1.0f / 3.0f, 0.541 * 1.0f / 3.0f, 0.722 * 1.0f / 4.0f, 1.0 };
     }
 
@@ -299,9 +300,9 @@ bool Render::render()
     m_pDeviceContext->OMSetBlendState(m_pTransparentBlendState, nullptr, 0xFFFFFFFF);
     //m_pDeviceContext->OMSetDepthStencilState(m_pTransparentDepthState, 0);
 
-    //drawTransparentSorted();
-    /*m_pRect1->render(m_pDeviceContext, m_pSceneBuffer);
-    m_pRect2->render(m_pDeviceContext, m_pSceneBuffer);*/
+    drawTransparentSorted();
+    //m_pRect1->render(m_pDeviceContext, m_pSceneBuffer);
+    //m_pRect2->render(m_pDeviceContext, m_pSceneBuffer);
 
     // Start the Dear ImGui frame
     ImGui_ImplDX11_NewFrame();
@@ -309,38 +310,36 @@ bool Render::render()
     ImGui::NewFrame();
 
     {
-        bool a = true;
         ImGui::Begin("Lights");
 
-        ImGui::Checkbox("Show bulbs", &a);
-        ImGui::Checkbox("Use normal maps", &a);
-        ImGui::Checkbox("Show normals", &a);
+        ImGui::Checkbox("Use normal maps on first cube", &m_useNormalMap);
+        ImGui::Checkbox("Show normals", &m_showNormals);
 
-        //m_sceneBuffer.lightCount.y = m_useNormalMaps ? 1 : 0;
-        //m_sceneBuffer.lightCount.z = m_showNormals ? 1 : 0;
+        m_sceneBuffer.SceneParams.y = m_useNormalMap ? 1 : 0;
+        m_sceneBuffer.SceneParams.z = m_showNormals ? 1 : 0;
 
         bool add = ImGui::Button("+");
         ImGui::SameLine();
         bool remove = ImGui::Button("-");
 
-        /*if (add && m_sceneBuffer.lightCount.x < 10)
+        if (add && m_sceneBuffer.SceneParams.x < 3)
         {
-            ++m_sceneBuffer.lightCount.x;
-            m_sceneBuffer.lights[m_sceneBuffer.lightCount.x - 1] = Light();
+            ++m_sceneBuffer.SceneParams.x;
+            m_sceneBuffer.lights[m_sceneBuffer.SceneParams.x - 1] = Light();
         }
-        if (remove && m_sceneBuffer.lightCount.x > 0)
+        if (remove && m_sceneBuffer.SceneParams.x > 0)
         {
-            --m_sceneBuffer.lightCount.x;
-        }*/
+            --m_sceneBuffer.SceneParams.x;
+        }
 
         char buffer[1024];
-        for (int i = 0; i < 1; i++)
+        for (int i = 0; i < m_sceneBuffer.SceneParams.x; i++)
         {
             ImGui::Text("Light %d", i);
             sprintf_s(buffer, "Pos %d", i);
-            ImGui::DragFloat3(buffer, (float*)&m_sceneBuffer.light.Pos, 0.1f, -10.0f, 10.0f);
+            ImGui::DragFloat3(buffer, (float*)&m_sceneBuffer.lights[i].Pos, 0.1f, -10.0f, 10.0f);
             sprintf_s(buffer, "Color %d", i);
-            ImGui::ColorEdit3(buffer, (float*)&m_sceneBuffer.light.Color);
+            ImGui::ColorEdit3(buffer, (float*)&m_sceneBuffer.lights[i].Color);
         }
 
         ImGui::End();

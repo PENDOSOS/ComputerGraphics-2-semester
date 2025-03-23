@@ -6,6 +6,7 @@ struct RectVertex
 {
 	DirectX::XMFLOAT3 Pos;
 	COLORREF Color;
+	DirectX::XMFLOAT3 alpha;
 };
 
 class TransparentRect

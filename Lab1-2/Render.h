@@ -17,7 +17,8 @@ struct Light
 struct SceneBuffer
 {
     DirectX::XMMATRIX VP;
-    Light light;
+    DirectX::XMINT4 SceneParams; // x - light count
+    Light lights[3];
     DirectX::XMFLOAT4 AmbientColor;
     DirectX::XMFLOAT3 CameraPos;
 };
@@ -70,7 +71,14 @@ public:
         , m_pBlendState(nullptr)
         , m_pTransparentDepthState(nullptr)
         , m_pTransparentBlendState(nullptr)
-    {}
+        , m_useNormalMap(true)
+        , m_showNormals(false)
+    {
+        for (int i = 0; i < 3; i++)
+        {
+            m_pLightSourceGeomBuffers[i] = nullptr;
+        }
+    }
 
     ~Render() { terminate(); }
 
@@ -116,6 +124,7 @@ private:
     ID3D11Buffer* m_pSceneBuffer;
     ID3D11Buffer* m_pGeomBuffer;
     ID3D11Buffer* m_pGeomBuffer2;
+    ID3D11Buffer* m_pLightSourceGeomBuffers[3];
 
     ID3D11SamplerState* m_pSamplerState;
 
@@ -142,5 +151,7 @@ private:
     int m_mousePosX;
     int m_mousePosY;
     bool m_isButtonPressed;
+    bool m_useNormalMap;
+    bool m_showNormals;
 };
 

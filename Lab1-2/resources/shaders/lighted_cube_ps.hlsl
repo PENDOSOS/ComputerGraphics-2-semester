@@ -4,7 +4,7 @@ cbuffer GeomBuffer : register(b1)
 {
     float4x4 model;
     float4x4 modelNormal;
-    float4 params; // x - shininess, y - use normal map
+    float4 params; // x - shininess
 };
 
 Texture2D colorTexture : register(t0);
@@ -27,16 +27,14 @@ float4 PS(VSOutput input) : SV_Target0
     float3 objectColor = colorTexture.Sample(colorSampler, input.uv).xyz;
     
     float3 normal = normalize(input.normal);
-    if (params.y > 0.0)
+    if (sceneParams.y > 0.0)
     {
         normal = normalTexture.Sample(colorSampler, input.uv).xyz * 2.0 - float3(1.0, 1.0, 1.0);
         float3 binorm = normalize(cross(input.normal, input.tangent));
         normal = normal.x * normalize(input.tangent) + normal.y * binorm + normal.z * normalize(input.normal);
     }
-        
-    float3 a = CalcLight(objectColor, normal, input.worldPos.xyz, params.x, false);
     
-    resultColor = float4(a, 1);
+    resultColor = float4(CalcLight(objectColor, normal, input.worldPos.xyz, params.x, false), 1);
 
     return resultColor;
 }
