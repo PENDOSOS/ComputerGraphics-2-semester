@@ -6,6 +6,7 @@
 #include "Skybox.h"
 #include "TransparentRect.h"
 #include "LightModel.h"
+#include "Postprocess.h"
 
 #define PI 3.14159265358979323846
 
@@ -74,6 +75,8 @@ public:
         , m_pTransparentBlendState(nullptr)
         , m_useNormalMap(true)
         , m_showNormals(false)
+        , m_pPostprocess(nullptr)
+        , m_useFilter(false)
     {
         for (int i = 0; i < 3; i++)
         {
@@ -139,6 +142,7 @@ private:
     Skybox* m_pSkybox;
     TransparentRect* m_pRect1;
     TransparentRect* m_pRect2;
+    Postprocess* m_pPostprocess;
 
     SceneBuffer m_sceneBuffer;
 
@@ -154,6 +158,7 @@ private:
     bool m_isButtonPressed;
     bool m_useNormalMap;
     bool m_showNormals;
+    bool m_useFilter;
 
     std::vector<LightModel*> lights;
 };

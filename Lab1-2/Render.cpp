@@ -149,6 +149,7 @@ bool Render::init(HWND window)
     m_pSkybox = new Skybox(m_pDevice);
     m_pRect1 = new TransparentRect(m_pDevice, 1.0f, 0, 0, 128);
     m_pRect2 = new TransparentRect(m_pDevice, -1.0f, 128, 0, 0);
+    m_pPostprocess = new Postprocess(m_pDevice, m_width, m_height);
 
     lights.resize(3);
     for (int i = 0; i < 3; i++)
@@ -174,6 +175,7 @@ void Render::terminate()
     delete m_pSkybox;
     delete m_pRect1;
     delete m_pRect2;
+    delete m_pPostprocess;
 
     ImGui_ImplDX11_Shutdown();
     ImGui_ImplWin32_Shutdown();
@@ -284,11 +286,14 @@ bool Render::render()
 {
     m_pDeviceContext->ClearState();
 
-    ID3D11RenderTargetView* views[] = { m_pBackBufferRTV };
+    //ID3D11RenderTargetView* views[] = { m_pBackBufferRTV };
+    ID3D11RenderTargetView* colorBuffer = m_pPostprocess->getRenderTarget();
+    ID3D11RenderTargetView* views[] = { colorBuffer };
     m_pDeviceContext->OMSetRenderTargets(1, views, m_pDepthBufferDSV);
 
     static const FLOAT BackColor[4] = { 0.25f, 0.25f, 0.25f, 1.0f };
-    m_pDeviceContext->ClearRenderTargetView(m_pBackBufferRTV, BackColor);
+    //m_pDeviceContext->ClearRenderTargetView(m_pBackBufferRTV, BackColor);
+    m_pDeviceContext->ClearRenderTargetView(colorBuffer, BackColor);
     m_pDeviceContext->ClearDepthStencilView(m_pDepthBufferDSV, D3D11_CLEAR_DEPTH, 1.0f, 0);
 
     D3D11_VIEWPORT viewport;
@@ -330,46 +335,7 @@ bool Render::render()
     //m_pRect1->render(m_pDeviceContext, m_pSceneBuffer);
     //m_pRect2->render(m_pDeviceContext, m_pSceneBuffer);
 
-    // Start the Dear ImGui frame
-    ImGui_ImplDX11_NewFrame();
-    ImGui_ImplWin32_NewFrame();
-    ImGui::NewFrame();
-
-    {
-        ImGui::Begin("Lights (3 maximum)");
-
-        ImGui::Checkbox("Use normal maps", &m_useNormalMap);
-        ImGui::Checkbox("Show normals", &m_showNormals);
-
-        m_sceneBuffer.SceneParams.y = m_useNormalMap ? 1 : 0;
-        m_sceneBuffer.SceneParams.z = m_showNormals ? 1 : 0;
-
-        bool add = ImGui::Button("+");
-        ImGui::SameLine();
-        bool remove = ImGui::Button("-");
-
-        if (add && m_sceneBuffer.SceneParams.x < 3)
-        {
-            ++m_sceneBuffer.SceneParams.x;
-            m_sceneBuffer.lights[m_sceneBuffer.SceneParams.x - 1] = Light();
-        }
-        if (remove && m_sceneBuffer.SceneParams.x > 0)
-        {
-            --m_sceneBuffer.SceneParams.x;
-        }
-
-        char buffer[1024];
-        for (int i = 0; i < m_sceneBuffer.SceneParams.x; i++)
-        {
-            ImGui::Text("Light %d", i);
-            sprintf_s(buffer, "Pos %d", i);
-            ImGui::DragFloat3(buffer, (float*)&m_sceneBuffer.lights[i].Pos, 0.1f, -10.0f, 10.0f);
-            sprintf_s(buffer, "Color %d", i);
-            ImGui::ColorEdit3(buffer, (float*)&m_sceneBuffer.lights[i].Color);
-        }
-
-        ImGui::End();
-    }
+    m_pPostprocess->render(m_pDeviceContext, m_pBackBufferRTV, m_pSamplerState);
 
     // Rendering
     ImGui::Render();
@@ -413,6 +379,7 @@ bool Render::resize(UINT width, UINT height)
 
             result = setupBackBuffer();
             result = initDepthStencil();
+            m_pPostprocess->reinit(m_width, m_height);
         }
 
         return SUCCEEDED(result);
@@ -423,6 +390,49 @@ bool Render::resize(UINT width, UINT height)
 
 bool Render::update()
 {
+    // Start the Dear ImGui frame
+    ImGui_ImplDX11_NewFrame();
+    ImGui_ImplWin32_NewFrame();
+    ImGui::NewFrame();
+
+    {
+        ImGui::Begin("Lights (3 maximum)");
+
+        ImGui::Checkbox("Use normal maps", &m_useNormalMap);
+        ImGui::Checkbox("Show normals", &m_showNormals);
+        ImGui::Checkbox("Use filter", &m_useFilter);
+
+        m_sceneBuffer.SceneParams.y = m_useNormalMap ? 1 : 0;
+        m_sceneBuffer.SceneParams.z = m_showNormals ? 1 : 0;
+        m_sceneBuffer.SceneParams.w = m_useFilter ? 1 : 0;
+
+        bool add = ImGui::Button("+");
+        ImGui::SameLine();
+        bool remove = ImGui::Button("-");
+
+        if (add && m_sceneBuffer.SceneParams.x < 3)
+        {
+            ++m_sceneBuffer.SceneParams.x;
+            m_sceneBuffer.lights[m_sceneBuffer.SceneParams.x - 1] = Light();
+        }
+        if (remove && m_sceneBuffer.SceneParams.x > 0)
+        {
+            --m_sceneBuffer.SceneParams.x;
+        }
+
+        char buffer[1024];
+        for (int i = 0; i < m_sceneBuffer.SceneParams.x; i++)
+        {
+            ImGui::Text("Light %d", i);
+            sprintf_s(buffer, "Pos %d", i);
+            ImGui::DragFloat3(buffer, (float*)&m_sceneBuffer.lights[i].Pos, 0.1f, -10.0f, 10.0f);
+            sprintf_s(buffer, "Color %d", i);
+            ImGui::ColorEdit3(buffer, (float*)&m_sceneBuffer.lights[i].Color);
+        }
+
+        ImGui::End();
+    }
+
     size_t usec = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
     if (m_prevSec == 0)
     {
