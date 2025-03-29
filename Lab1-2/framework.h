@@ -247,3 +247,8 @@ inline bool compileShader(ID3D11Device* device, LPCTSTR srcFilename, const std::
     }
     return res;
 }
+
+inline float randNormf()
+{
+    return (float)rand() / RAND_MAX;
+}

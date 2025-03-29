@@ -29,7 +29,7 @@ struct GeomBuffer
 {
     DirectX::XMMATRIX M;
     DirectX::XMMATRIX NormalM;
-    DirectX::XMFLOAT4 params;
+    DirectX::XMFLOAT4 params; // x - shininess, y - use
 };
 
 struct Camera
@@ -128,6 +128,7 @@ private:
     ID3D11Buffer* m_pSceneBuffer;
     ID3D11Buffer* m_pGeomBuffer;
     ID3D11Buffer* m_pGeomBuffer2;
+    ID3D11Buffer* m_pGeomBufferInst;
     ID3D11Buffer* m_pLightSourceGeomBuffers[3];
 
     ID3D11SamplerState* m_pSamplerState;
@@ -161,5 +162,6 @@ private:
     bool m_useFilter;
 
     std::vector<LightModel*> lights;
+    std::vector<GeomBuffer> geomBuffers;
 };
 

@@ -145,7 +145,7 @@ bool Render::init(HWND window)
     m_pCamera = new Camera;
     //m_pCube = new Cube(m_pDevice);
     m_pCube = new TexturedCube(m_pDevice);
-    m_pCube2 = new TexturedCube(m_pDevice);
+    //m_pCube2 = new TexturedCube(m_pDevice);
     m_pSkybox = new Skybox(m_pDevice);
     m_pRect1 = new TransparentRect(m_pDevice, 1.0f, 0, 0, 128);
     m_pRect2 = new TransparentRect(m_pDevice, -1.0f, 128, 0, 0);
@@ -318,7 +318,7 @@ bool Render::render()
     //m_pTriangle->render(m_pDeviceContext, m_width, m_height);
 
     m_pCube->render(m_pDeviceContext, m_pSceneBuffer, m_pGeomBuffer, m_pSamplerState);
-    m_pCube2->render(m_pDeviceContext, m_pSceneBuffer, m_pGeomBuffer2, m_pSamplerState);
+    //m_pCube2->render(m_pDeviceContext, m_pSceneBuffer, m_pGeomBuffer2, m_pSamplerState);
 
     m_pSkybox->render(m_pDeviceContext, m_width, m_height, m_pSceneBuffer, m_pSamplerState);
 
@@ -456,7 +456,7 @@ bool Render::update()
     geomBuffer.params.y = 1;
 
     m_pDeviceContext->UpdateSubresource(m_pGeomBuffer, 0, nullptr, &geomBuffer, 0, 0);
-   
+
     m_prevSec = usec;
 
     // Setup camera

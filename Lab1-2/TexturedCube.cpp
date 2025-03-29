@@ -1,4 +1,5 @@
 #include "TexturedCube.h"
+#include "DirectXTex.h"
 
 struct CubeVertex
 {
@@ -34,6 +35,7 @@ TexturedCube::TexturedCube(ID3D11Device* device)
 	initBuffers();
 	initInputLayout();
 	initTexture();
+    initInstances();
 }
 
 TexturedCube::~TexturedCube()
@@ -60,12 +62,28 @@ void TexturedCube::render(ID3D11DeviceContext* context, ID3D11Buffer* sceneBuffe
         context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
         context->VSSetConstantBuffers(0, 1, &sceneBuffer);
-        context->VSSetConstantBuffers(1, 1, &geomBuffer);
+        context->VSSetConstantBuffers(1, 1, &m_pGeomBufferInst);
         context->PSSetConstantBuffers(0, 1, &sceneBuffer);
-        context->PSSetConstantBuffers(1, 1, &geomBuffer);
+        context->PSSetConstantBuffers(1, 1, &m_pGeomBufferInst);
 
-        context->DrawIndexed(36, 0, 0);
+        context->DrawIndexedInstanced(36, 20, 0, 0, 0);
     }
+}
+
+void TexturedCube::update(ID3D11DeviceContext* context, double angle)
+{
+    for (int i = 0; i < MAX_INST; i++)
+    {
+        // if tiles texture - rotate cube
+        if (geomBuffers[i].params.z)
+        {
+            geomBuffers[i].M = DirectX::XMMatrixRotationY(angle);
+            geomBuffers[i].NormalM = DirectX::XMMatrixTranspose(DirectX::XMMatrixInverse(nullptr, geomBuffers[i].M));
+            // добавить кулинг
+        }
+    }
+
+    context->UpdateSubresource(m_pGeomBufferInst, 0, nullptr, &geomBuffers[0], 0, 0);
 }
 
 bool TexturedCube::initBuffers()
@@ -218,7 +236,69 @@ bool TexturedCube::initInputLayout()
 
 bool TexturedCube::initTexture()
 {
-    HRESULT result = DirectX::CreateDDSTextureFromFile(
+    std::vector<DirectX::TexMetadata> textureInfo;
+    std::vector<DirectX::ScratchImage> textures;
+    textureInfo.resize(2);
+    textures.resize(2);
+    HRESULT result = S_OK;
+    result = DirectX::LoadFromDDSFile(L"resources/textures/logo.dds", DirectX::DDS_FLAGS_NONE, &textureInfo[0], textures[0]);
+    result = DirectX::LoadFromDDSFile(L"resources/textures/tiles.dds", DirectX::DDS_FLAGS_NONE, &textureInfo[1], textures[1]);
+
+    D3D11_TEXTURE2D_DESC txDesc = {};
+    txDesc.ArraySize = 2;
+    txDesc.Format = textureInfo[0].format;
+    txDesc.MipLevels = textureInfo[0].mipLevels;
+    txDesc.Usage = D3D11_USAGE_IMMUTABLE;
+    txDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+    txDesc.CPUAccessFlags = 0;
+    txDesc.MiscFlags = 0;
+    txDesc.SampleDesc.Count = 1;
+    txDesc.SampleDesc.Quality = 0;
+    txDesc.Height = textureInfo[0].height;
+    txDesc.Width = textureInfo[0].width;
+
+    std::vector<D3D11_SUBRESOURCE_DATA> data;
+    data.resize(textureInfo[0].mipLevels * 2);
+    for (UINT32 j = 0; j < 2; j++)
+    {
+        UINT32 blockWidth = (txDesc.Width + 4u - 1u) / 4u;
+        UINT32 blockHeight = (txDesc.Height + 4u - 1u) / 4u;
+        UINT32 pitch = blockWidth * 8; // 8 bytes for DXGI_FORMAT_BC1_UNORM
+        const char* pSrcData = reinterpret_cast<const char*>(textures[j].GetPixels());
+
+        for (UINT32 i = 0; i < textureInfo[j].mipLevels; i++)
+        {
+            data[j * textureInfo[j].mipLevels + i].pSysMem = pSrcData;
+            data[j * textureInfo[j].mipLevels + i].SysMemPitch = pitch;
+            data[j * textureInfo[j].mipLevels + i].SysMemSlicePitch = 0;
+
+            pSrcData += pitch * blockHeight;
+            blockHeight = 1u > blockHeight / 2 ? 1u : blockHeight / 2;
+            blockWidth = 1u > blockHeight / 2 ? 1u : blockWidth / 2;
+            pitch = blockWidth * 8;
+        }
+    }
+    ID3D11Texture2D* texture;
+    texture = nullptr;
+    result = m_pDevice->CreateTexture2D(&txDesc, &data[0], &texture);
+    if (FAILED(result))
+    {
+        return false;
+    }
+
+    D3D11_SHADER_RESOURCE_VIEW_DESC desc = {};
+    desc.Format = textureInfo[0].format;
+    desc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DARRAY;
+    desc.Texture2DArray.ArraySize = 2;
+    desc.Texture2DArray.FirstArraySlice = 0;
+    desc.Texture2DArray.MipLevels = textureInfo[0].mipLevels;
+    desc.Texture2DArray.MostDetailedMip = 0;
+
+    result = m_pDevice->CreateShaderResourceView(texture, &desc, &m_pSRV);
+
+    texture->Release();
+    
+    /*result = DirectX::CreateDDSTextureFromFile(
         m_pDevice,
         L"resources/textures/tiles.dds",
         nullptr,
@@ -228,7 +308,7 @@ bool TexturedCube::initTexture()
     if (FAILED(result))
     {
         return false;
-    }
+    }*/
 
     result = DirectX::CreateDDSTextureFromFile(
         m_pDevice,
@@ -245,8 +325,65 @@ bool TexturedCube::initTexture()
     return true;
 }
 
+bool TexturedCube::initInstances()
+{
+    geomBuffers.resize(MAX_INST);
+
+    geomBuffers[0].M = DirectX::XMMatrixIdentity();
+    geomBuffers[0].NormalM = DirectX::XMMatrixIdentity();
+    geomBuffers[0].params.x = 64;
+    geomBuffers[0].params.y = 1;
+    geomBuffers[0].params.z = 1;
+    geomBuffers[0].params.w = 1;
+
+    geomBuffers[1].M = DirectX::XMMatrixIdentity();
+    geomBuffers[1].NormalM = DirectX::XMMatrixIdentity();
+    geomBuffers[1].params.x = 100;
+    geomBuffers[1].params.y = 0;
+    geomBuffers[1].params.z = 0;
+    geomBuffers[1].params.w = 1;
+
+    for (int i = 2; i < MAX_INST; i++)
+    {
+        DirectX::XMFLOAT3 pos = { float(randNormf() * 10 - 5.0), float(randNormf() * 10 - 5.0), float(randNormf() * 10 - 5.0) };
+        geomBuffers[i].M = DirectX::XMMatrixTranslation(pos.x, pos.y, pos.z);
+        geomBuffers[i].NormalM = DirectX::XMMatrixIdentity();
+        geomBuffers[i].params.x = 50;
+        geomBuffers[i].params.z = rand() % 2;
+        geomBuffers[i].params.y = geomBuffers[i].params.z ? 1 : 0;
+        geomBuffers[i].params.w = 1;
+    }
+
+    D3D11_BUFFER_DESC instanceBufferDesc = {};
+    instanceBufferDesc.ByteWidth = sizeof(GeomBufferInst) * MAX_INST;
+    instanceBufferDesc.Usage = D3D11_USAGE_DEFAULT;
+    instanceBufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+    instanceBufferDesc.CPUAccessFlags = 0;
+    instanceBufferDesc.MiscFlags = 0;
+    instanceBufferDesc.StructureByteStride = 0;
+
+    D3D11_SUBRESOURCE_DATA instanceData = {};
+    instanceData.pSysMem = &geomBuffers[0];
+    instanceData.SysMemPitch = sizeof(GeomBufferInst) * MAX_INST;
+    HRESULT result = m_pDevice->CreateBuffer(&instanceBufferDesc, &instanceData, &m_pGeomBufferInst);
+
+    if (FAILED(result))
+        return false;
+
+    result = SetResourceName(m_pGeomBufferInst, "instance buffer");
+
+    return true;
+}
+
 void TexturedCube::terminate()
 {
+    
+    if (m_pGeomBufferInst != nullptr)
+    {
+        m_pGeomBufferInst->Release();
+        m_pGeomBufferInst = nullptr;
+    }
+
     if (m_pNormalSRV != nullptr)
     {
         m_pNormalSRV->Release();
