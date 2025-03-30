@@ -19,7 +19,10 @@ public:
 
 	void render(ID3D11DeviceContext* context, ID3D11Buffer* sceneBuffer, ID3D11Buffer* geomBuffer, ID3D11SamplerState* samplerState);
 
-	void update(ID3D11DeviceContext* context, double angle);
+	void update(ID3D11DeviceContext* context, float angle);
+
+	std::vector<GeomBufferInst>& getInstances() { return geomBuffers; }
+	std::vector<std::pair<DirectX::XMFLOAT3, DirectX::XMFLOAT3>>& getAABB() { return AABB; }
 
 private:
 	bool initBuffers();
@@ -46,5 +49,9 @@ private:
 	ID3D11Buffer* m_pGeomBufferInst;
 
 	std::vector<GeomBufferInst> geomBuffers;
+	std::vector<DirectX::XMINT4> visible;
+
+	int instanceCount;
+	std::vector<std::pair<DirectX::XMFLOAT3, DirectX::XMFLOAT3>> AABB;
 };
 

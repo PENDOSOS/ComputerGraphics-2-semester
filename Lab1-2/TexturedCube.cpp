@@ -32,6 +32,7 @@ TexturedCube::TexturedCube(ID3D11Device* device)
 	, m_pVertexShader(nullptr)
     , m_pLightingParamBuffer(nullptr)
 {
+    instanceCount = MAX_INST;
 	initBuffers();
 	initInputLayout();
 	initTexture();
@@ -66,24 +67,41 @@ void TexturedCube::render(ID3D11DeviceContext* context, ID3D11Buffer* sceneBuffe
         context->PSSetConstantBuffers(0, 1, &sceneBuffer);
         context->PSSetConstantBuffers(1, 1, &m_pGeomBufferInst);
 
-        context->DrawIndexedInstanced(36, 20, 0, 0, 0);
+        context->DrawIndexedInstanced(36, instanceCount, 0, 0, 0);
     }
 }
 
-void TexturedCube::update(ID3D11DeviceContext* context, double angle)
+void TexturedCube::update(ID3D11DeviceContext* context, float angle)
 {
+    instanceCount = 0;
+    std::vector<GeomBufferInst> visibleInstances;
+    //visibleInstances.resize(20);
     for (int i = 0; i < MAX_INST; i++)
     {
+        float offsetX = geomBuffers[i].M.r[3].m128_f32[0];
+        float offsetY = geomBuffers[i].M.r[3].m128_f32[1];
+        float offsetZ = geomBuffers[i].M.r[3].m128_f32[2];
         // if tiles texture - rotate cube
         if (geomBuffers[i].params.z)
         {
-            geomBuffers[i].M = DirectX::XMMatrixRotationY(angle);
+            geomBuffers[i].M = DirectX::XMMatrixMultiply(DirectX::XMMatrixRotationY(angle), DirectX::XMMatrixTranslation(offsetX, offsetY, offsetZ));
             geomBuffers[i].NormalM = DirectX::XMMatrixTranspose(DirectX::XMMatrixInverse(nullptr, geomBuffers[i].M));
-            // добавить кулинг
+        }
+        instanceCount += geomBuffers[i].params.w;
+        if ((int)geomBuffers[i].params.w)
+        {
+            visibleInstances.push_back(geomBuffers[i]);
         }
     }
+    visibleInstances.resize(20);
+    context->UpdateSubresource(m_pGeomBufferInst, 0, nullptr, visibleInstances.data(), 0, 0);
 
-    context->UpdateSubresource(m_pGeomBufferInst, 0, nullptr, &geomBuffers[0], 0, 0);
+    {
+        ImGui::Begin("Culling stats");
+        ImGui::Text("Instances: %d", MAX_INST);
+        ImGui::Text("Visible instances %d", instanceCount);
+        ImGui::End();
+    }
 }
 
 bool TexturedCube::initBuffers()
@@ -327,7 +345,10 @@ bool TexturedCube::initTexture()
 
 bool TexturedCube::initInstances()
 {
+    const float diag = sqrtf(2.0f) / 2.0f * 0.5f;
+
     geomBuffers.resize(MAX_INST);
+    AABB.resize(MAX_INST);
 
     geomBuffers[0].M = DirectX::XMMatrixIdentity();
     geomBuffers[0].NormalM = DirectX::XMMatrixIdentity();
@@ -335,13 +356,17 @@ bool TexturedCube::initInstances()
     geomBuffers[0].params.y = 1;
     geomBuffers[0].params.z = 1;
     geomBuffers[0].params.w = 1;
+    AABB[0].first = {-diag, -0.5, -diag};
+    AABB[0].second = { diag, 0.5, diag };
 
-    geomBuffers[1].M = DirectX::XMMatrixIdentity();
+    geomBuffers[1].M = DirectX::XMMatrixTranslation(2.0, 0.0, 2.0);
     geomBuffers[1].NormalM = DirectX::XMMatrixIdentity();
     geomBuffers[1].params.x = 100;
     geomBuffers[1].params.y = 0;
     geomBuffers[1].params.z = 0;
     geomBuffers[1].params.w = 1;
+    AABB[1].first = { 2.0f - diag, -0.5f, 2.0f - diag };
+    AABB[1].second = { 2.0f + diag, 0.5f, 2.0f + diag };
 
     for (int i = 2; i < MAX_INST; i++)
     {
@@ -352,6 +377,8 @@ bool TexturedCube::initInstances()
         geomBuffers[i].params.z = rand() % 2;
         geomBuffers[i].params.y = geomBuffers[i].params.z ? 1 : 0;
         geomBuffers[i].params.w = 1;
+        AABB[i].first = {pos.x - diag, pos.y - 0.5f, pos.z - diag};
+        AABB[i].second = { pos.x + diag, pos.y + 0.5f, pos.z + diag };
     }
 
     D3D11_BUFFER_DESC instanceBufferDesc = {};
