@@ -54,6 +54,9 @@
     <ClInclude Include="LightModel.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
+    <ClInclude Include="Postprocess.h">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Window.cpp">
@@ -81,6 +84,9 @@
       <Filter>Исходные файлы</Filter>
     </ClCompile>
     <ClCompile Include="LightModel.cpp">
+      <Filter>Исходные файлы</Filter>
+    </ClCompile>
+    <ClCompile Include="Postprocess.cpp">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
   </ItemGroup>

@@ -26,6 +26,10 @@
 #include <algorithm>
 #include "thirdparty/DDSTextureLoader11.h"
 
+#include "imgui.h"
+#include "backends/imgui_impl_dx11.h"
+#include "backends/imgui_impl_win32.h"
+
 #define PI 3.14159265358979323846
 
 enum shader_stage
@@ -246,4 +250,9 @@ inline bool compileShader(ID3D11Device* device, LPCTSTR srcFilename, const std::
         res = SUCCEEDED(result);
     }
     return res;
+}
+
+inline float randNormf()
+{
+    return (float)rand() / RAND_MAX;
 }

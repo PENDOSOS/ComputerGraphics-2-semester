@@ -6,6 +6,7 @@
 #include "Skybox.h"
 #include "TransparentRect.h"
 #include "LightModel.h"
+#include "Postprocess.h"
 
 #define PI 3.14159265358979323846
 
@@ -28,7 +29,7 @@ struct GeomBuffer
 {
     DirectX::XMMATRIX M;
     DirectX::XMMATRIX NormalM;
-    DirectX::XMFLOAT4 params;
+    DirectX::XMFLOAT4 params; // x - shininess, y - use
 };
 
 struct Camera
@@ -74,6 +75,8 @@ public:
         , m_pTransparentBlendState(nullptr)
         , m_useNormalMap(true)
         , m_showNormals(false)
+        , m_pPostprocess(nullptr)
+        , m_useFilter(false)
     {
         for (int i = 0; i < 3; i++)
         {
@@ -105,6 +108,10 @@ private:
 
     void drawTransparentSorted();
 
+    void cull();
+    DirectX::XMFLOAT4 buildPlane(const DirectX::XMFLOAT3& p0, const DirectX::XMFLOAT3& p1, const DirectX::XMFLOAT3& p2, const DirectX::XMFLOAT3& p3);
+    bool isBoxInside(const std::vector<DirectX::XMFLOAT4>& frustum, std::pair<DirectX::XMFLOAT3, DirectX::XMFLOAT3>& AABB);
+
 private:
     ID3D11Device* m_pDevice;
     ID3D11DeviceContext* m_pDeviceContext;
@@ -125,6 +132,7 @@ private:
     ID3D11Buffer* m_pSceneBuffer;
     ID3D11Buffer* m_pGeomBuffer;
     ID3D11Buffer* m_pGeomBuffer2;
+    ID3D11Buffer* m_pGeomBufferInst;
     ID3D11Buffer* m_pLightSourceGeomBuffers[3];
 
     ID3D11SamplerState* m_pSamplerState;
@@ -139,6 +147,7 @@ private:
     Skybox* m_pSkybox;
     TransparentRect* m_pRect1;
     TransparentRect* m_pRect2;
+    Postprocess* m_pPostprocess;
 
     SceneBuffer m_sceneBuffer;
 
@@ -154,7 +163,9 @@ private:
     bool m_isButtonPressed;
     bool m_useNormalMap;
     bool m_showNormals;
+    bool m_useFilter;
 
     std::vector<LightModel*> lights;
+    std::vector<GeomBuffer> geomBuffers;
 };
 

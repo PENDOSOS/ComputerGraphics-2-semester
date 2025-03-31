@@ -20,7 +20,7 @@ struct VSOutput
 VSOutput VS(VSInput vertex)
 {
     VSOutput result;
-    float3 pos = cameraPos.xyz + vertex.pos * size.x;
+    float3 pos = cameraPos.xyz + vertex.pos * size.x * 2;
     result.pos = mul(vp, mul(model, float4(pos, 1.0)));
     result.localPos = vertex.pos;
     return result;

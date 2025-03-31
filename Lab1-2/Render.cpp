@@ -2,9 +2,7 @@
 
 #include "Render.h"
 
-#include "imgui.h"
-#include "backends/imgui_impl_dx11.h"
-#include "backends/imgui_impl_win32.h"
+
 
 #pragma comment(lib, "dxgi.lib") // don't work on my computer without these libs
 #pragma comment(lib, "d3d11.lib") // uncomment if it doesn't launch
@@ -145,10 +143,11 @@ bool Render::init(HWND window)
     m_pCamera = new Camera;
     //m_pCube = new Cube(m_pDevice);
     m_pCube = new TexturedCube(m_pDevice);
-    m_pCube2 = new TexturedCube(m_pDevice);
+    //m_pCube2 = new TexturedCube(m_pDevice);
     m_pSkybox = new Skybox(m_pDevice);
     m_pRect1 = new TransparentRect(m_pDevice, 1.0f, 0, 0, 128);
     m_pRect2 = new TransparentRect(m_pDevice, -1.0f, 128, 0, 0);
+    m_pPostprocess = new Postprocess(m_pDevice, m_width, m_height);
 
     lights.resize(3);
     for (int i = 0; i < 3; i++)
@@ -174,6 +173,7 @@ void Render::terminate()
     delete m_pSkybox;
     delete m_pRect1;
     delete m_pRect2;
+    delete m_pPostprocess;
 
     ImGui_ImplDX11_Shutdown();
     ImGui_ImplWin32_Shutdown();
@@ -284,11 +284,14 @@ bool Render::render()
 {
     m_pDeviceContext->ClearState();
 
-    ID3D11RenderTargetView* views[] = { m_pBackBufferRTV };
+    //ID3D11RenderTargetView* views[] = { m_pBackBufferRTV };
+    ID3D11RenderTargetView* colorBuffer = m_pPostprocess->getRenderTarget();
+    ID3D11RenderTargetView* views[] = { colorBuffer };
     m_pDeviceContext->OMSetRenderTargets(1, views, m_pDepthBufferDSV);
 
     static const FLOAT BackColor[4] = { 0.25f, 0.25f, 0.25f, 1.0f };
-    m_pDeviceContext->ClearRenderTargetView(m_pBackBufferRTV, BackColor);
+    //m_pDeviceContext->ClearRenderTargetView(m_pBackBufferRTV, BackColor);
+    m_pDeviceContext->ClearRenderTargetView(colorBuffer, BackColor);
     m_pDeviceContext->ClearDepthStencilView(m_pDepthBufferDSV, D3D11_CLEAR_DEPTH, 1.0f, 0);
 
     D3D11_VIEWPORT viewport;
@@ -313,7 +316,7 @@ bool Render::render()
     //m_pTriangle->render(m_pDeviceContext, m_width, m_height);
 
     m_pCube->render(m_pDeviceContext, m_pSceneBuffer, m_pGeomBuffer, m_pSamplerState);
-    m_pCube2->render(m_pDeviceContext, m_pSceneBuffer, m_pGeomBuffer2, m_pSamplerState);
+    //m_pCube2->render(m_pDeviceContext, m_pSceneBuffer, m_pGeomBuffer2, m_pSamplerState);
 
     m_pSkybox->render(m_pDeviceContext, m_width, m_height, m_pSceneBuffer, m_pSamplerState);
 
@@ -330,46 +333,7 @@ bool Render::render()
     //m_pRect1->render(m_pDeviceContext, m_pSceneBuffer);
     //m_pRect2->render(m_pDeviceContext, m_pSceneBuffer);
 
-    // Start the Dear ImGui frame
-    ImGui_ImplDX11_NewFrame();
-    ImGui_ImplWin32_NewFrame();
-    ImGui::NewFrame();
-
-    {
-        ImGui::Begin("Lights (3 maximum)");
-
-        ImGui::Checkbox("Use normal maps", &m_useNormalMap);
-        ImGui::Checkbox("Show normals", &m_showNormals);
-
-        m_sceneBuffer.SceneParams.y = m_useNormalMap ? 1 : 0;
-        m_sceneBuffer.SceneParams.z = m_showNormals ? 1 : 0;
-
-        bool add = ImGui::Button("+");
-        ImGui::SameLine();
-        bool remove = ImGui::Button("-");
-
-        if (add && m_sceneBuffer.SceneParams.x < 3)
-        {
-            ++m_sceneBuffer.SceneParams.x;
-            m_sceneBuffer.lights[m_sceneBuffer.SceneParams.x - 1] = Light();
-        }
-        if (remove && m_sceneBuffer.SceneParams.x > 0)
-        {
-            --m_sceneBuffer.SceneParams.x;
-        }
-
-        char buffer[1024];
-        for (int i = 0; i < m_sceneBuffer.SceneParams.x; i++)
-        {
-            ImGui::Text("Light %d", i);
-            sprintf_s(buffer, "Pos %d", i);
-            ImGui::DragFloat3(buffer, (float*)&m_sceneBuffer.lights[i].Pos, 0.1f, -10.0f, 10.0f);
-            sprintf_s(buffer, "Color %d", i);
-            ImGui::ColorEdit3(buffer, (float*)&m_sceneBuffer.lights[i].Color);
-        }
-
-        ImGui::End();
-    }
+    m_pPostprocess->render(m_pDeviceContext, m_pBackBufferRTV, m_pSamplerState);
 
     // Rendering
     ImGui::Render();
@@ -413,6 +377,7 @@ bool Render::resize(UINT width, UINT height)
 
             result = setupBackBuffer();
             result = initDepthStencil();
+            m_pPostprocess->reinit(m_width, m_height);
         }
 
         return SUCCEEDED(result);
@@ -423,6 +388,50 @@ bool Render::resize(UINT width, UINT height)
 
 bool Render::update()
 {
+    // Start the Dear ImGui frame
+    ImGui_ImplDX11_NewFrame();
+    ImGui_ImplWin32_NewFrame();
+    ImGui::NewFrame();
+
+    {
+        ImGui::Begin("Lights (3 maximum)");
+
+        //ImGui::Checkbox("Use normal maps", &m_useNormalMap);
+        ImGui::Checkbox("Show normals", &m_showNormals);
+        ImGui::Checkbox("Use filter", &m_useFilter);
+
+        m_sceneBuffer.SceneParams.y = m_useNormalMap ? 1 : 0;
+        m_sceneBuffer.SceneParams.z = m_showNormals ? 1 : 0;
+        m_sceneBuffer.SceneParams.w = m_useFilter ? 1 : 0;
+
+        bool add = ImGui::Button("+");
+        ImGui::SameLine();
+        bool remove = ImGui::Button("-");
+
+        if (add && m_sceneBuffer.SceneParams.x < 3)
+        {
+            ++m_sceneBuffer.SceneParams.x;
+            m_sceneBuffer.lights[m_sceneBuffer.SceneParams.x - 1] = Light();
+        }
+        if (remove && m_sceneBuffer.SceneParams.x > 0)
+        {
+            --m_sceneBuffer.SceneParams.x;
+        }
+
+        char buffer[1024];
+        for (int i = 0; i < m_sceneBuffer.SceneParams.x; i++)
+        {
+            ImGui::Text("Light %d", i);
+            sprintf_s(buffer, "Pos %d", i);
+            ImGui::DragFloat3(buffer, (float*)&m_sceneBuffer.lights[i].Pos, 0.1f, -10.0f, 10.0f);
+            sprintf_s(buffer, "Color %d", i);
+            ImGui::ColorEdit3(buffer, (float*)&m_sceneBuffer.lights[i].Color);
+        }
+
+        ImGui::End();
+    }
+
+
     size_t usec = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
     if (m_prevSec == 0)
     {
@@ -446,7 +455,7 @@ bool Render::update()
     geomBuffer.params.y = 1;
 
     m_pDeviceContext->UpdateSubresource(m_pGeomBuffer, 0, nullptr, &geomBuffer, 0, 0);
-   
+
     m_prevSec = usec;
 
     // Setup camera
@@ -503,6 +512,8 @@ bool Render::update()
 
         m_pDeviceContext->UpdateSubresource(m_pLightSourceGeomBuffers[i], 0, nullptr, &lightSourceGB, 0, 0);
     }
+    cull();
+    m_pCube->update(m_pDeviceContext, -m_angle);
 
     return SUCCEEDED(result);
 }
@@ -818,4 +829,128 @@ void Render::drawTransparentSorted()
         m_pRect1->render(m_pDeviceContext, m_pSceneBuffer);
         m_pRect2->render(m_pDeviceContext, m_pSceneBuffer);
     }
+}
+
+void Render::cull()
+{
+    DirectX::XMFLOAT3 cameraDir = { -cosf(m_pCamera->theta) * cosf(m_pCamera->phi), -sinf(m_pCamera->theta), -cosf(m_pCamera->theta) * sinf(m_pCamera->phi) };
+    float upTheta = m_pCamera->theta + (float)PI / 2;
+    DirectX::XMFLOAT3 cameraUp = DirectX::XMFLOAT3{ cosf(upTheta) * cosf(m_pCamera->phi), sinf(upTheta), cosf(upTheta) * sinf(m_pCamera->phi) };
+    DirectX::XMFLOAT3 cameraRight = { cameraUp.y * cameraDir.z - cameraUp.z * cameraDir.y, -cameraUp.x * cameraDir.z + cameraUp.z * cameraDir.x, cameraUp.x * cameraDir.y - cameraUp.y * cameraDir.x };
+    DirectX::XMFLOAT3 cameraPos = { (m_pCamera->poi.x - cameraDir.x) * m_pCamera->r, (m_pCamera->poi.y - cameraDir.y) * m_pCamera->r, (m_pCamera->poi.z - cameraDir.z) * m_pCamera->r };
+    // planes.first - near, planes.second - far
+    std::pair<std::vector<DirectX::XMFLOAT3>, std::vector<DirectX::XMFLOAT3>> planes;
+    planes.first.resize(4);
+    planes.second.resize(4);
+
+    float f = 100.0f;
+    float n = 0.1f;
+    float fov = (float)PI / 3;
+    float aspectRatio = (float)m_height / m_width;
+
+    planes.first[0] = {   
+        cameraPos.x + cameraDir.x * n - cameraRight.x * n * tanf(fov / 2) - cameraUp.x * n * tanf(fov / 2) * aspectRatio,
+        cameraPos.y + cameraDir.y * n - cameraRight.y * n * tanf(fov / 2) - cameraUp.y * n * tanf(fov / 2) * aspectRatio,
+        cameraPos.z + cameraDir.z * n - cameraRight.z * n * tanf(fov / 2) - cameraUp.z * n * tanf(fov / 2) * aspectRatio,
+    };
+    planes.first[3] = {
+        cameraPos.x + cameraDir.x * n - cameraRight.x * n * tanf(fov / 2) + cameraUp.x * n * tanf(fov / 2) * aspectRatio,
+        cameraPos.y + cameraDir.y * n - cameraRight.y * n * tanf(fov / 2) + cameraUp.y * n * tanf(fov / 2) * aspectRatio,
+        cameraPos.z + cameraDir.z * n - cameraRight.z * n * tanf(fov / 2) + cameraUp.z * n * tanf(fov / 2) * aspectRatio,
+    };
+    planes.first[2] = {
+        cameraPos.x + cameraDir.x * n + cameraRight.x * n * tanf(fov / 2) + cameraUp.x * n * tanf(fov / 2) * aspectRatio,
+        cameraPos.y + cameraDir.y * n + cameraRight.y * n * tanf(fov / 2) + cameraUp.y * n * tanf(fov / 2) * aspectRatio,
+        cameraPos.z + cameraDir.z * n + cameraRight.z * n * tanf(fov / 2) + cameraUp.z * n * tanf(fov / 2) * aspectRatio,
+    };
+    planes.first[1] = {
+        cameraPos.x + cameraDir.x * n + cameraRight.x * n * tanf(fov / 2) - cameraUp.x * n * tanf(fov / 2) * aspectRatio,
+        cameraPos.y + cameraDir.y * n + cameraRight.y * n * tanf(fov / 2) - cameraUp.y * n * tanf(fov / 2) * aspectRatio,
+        cameraPos.z + cameraDir.z * n + cameraRight.z * n * tanf(fov / 2) - cameraUp.z * n * tanf(fov / 2) * aspectRatio,
+    };
+
+    planes.second[0] = {
+        cameraPos.x + cameraDir.x * f - cameraRight.x * f * tanf(fov / 2) - cameraUp.x * f * tanf(fov / 2) * aspectRatio,
+        cameraPos.y + cameraDir.y * f - cameraRight.y * f * tanf(fov / 2) - cameraUp.y * f * tanf(fov / 2) * aspectRatio,
+        cameraPos.z + cameraDir.z * f - cameraRight.z * f * tanf(fov / 2) - cameraUp.z * f * tanf(fov / 2) * aspectRatio,
+    };
+    planes.second[3] = {
+        cameraPos.x + cameraDir.x * f - cameraRight.x * f * tanf(fov / 2) + cameraUp.x * f * tanf(fov / 2) * aspectRatio,
+        cameraPos.y + cameraDir.y * f - cameraRight.y * f * tanf(fov / 2) + cameraUp.y * f * tanf(fov / 2) * aspectRatio,
+        cameraPos.z + cameraDir.z * f - cameraRight.z * f * tanf(fov / 2) + cameraUp.z * f * tanf(fov / 2) * aspectRatio,
+    };
+    planes.second[2] = {
+        cameraPos.x + cameraDir.x * f + cameraRight.x * f * tanf(fov / 2) + cameraUp.x * f * tanf(fov / 2) * aspectRatio,
+        cameraPos.y + cameraDir.y * f + cameraRight.y * f * tanf(fov / 2) + cameraUp.y * f * tanf(fov / 2) * aspectRatio,
+        cameraPos.z + cameraDir.z * f + cameraRight.z * f * tanf(fov / 2) + cameraUp.z * f * tanf(fov / 2) * aspectRatio,
+    };
+    planes.second[1] = {
+        cameraPos.x + cameraDir.x * f + cameraRight.x * f * tanf(fov / 2) - cameraUp.x * f * tanf(fov / 2) * aspectRatio,
+        cameraPos.y + cameraDir.y * f + cameraRight.y * f * tanf(fov / 2) - cameraUp.y * f * tanf(fov / 2) * aspectRatio,
+        cameraPos.z + cameraDir.z * f + cameraRight.z * f * tanf(fov / 2) - cameraUp.z * f * tanf(fov / 2) * aspectRatio,
+    };
+
+    std::vector<DirectX::XMFLOAT4> frustumPlanes;
+    frustumPlanes.resize(6);
+    frustumPlanes[0] = buildPlane(planes.first[0], planes.first[1], planes.first[2], planes.first[3]);
+    frustumPlanes[1] = buildPlane(planes.first[0], planes.second[0], planes.second[1], planes.first[1]);
+    frustumPlanes[2] = buildPlane(planes.first[1], planes.second[1], planes.second[2], planes.first[2]);
+    frustumPlanes[3] = buildPlane(planes.first[2], planes.second[2], planes.second[3], planes.first[3]);
+    frustumPlanes[4] = buildPlane(planes.first[3], planes.second[3], planes.second[0], planes.first[0]);
+    frustumPlanes[5] = buildPlane(planes.second[1], planes.second[0], planes.second[3], planes.second[2]);
+
+    auto& AABB = m_pCube->getAABB();
+    auto& instances = m_pCube->getInstances();
+    for (int i = 0; i < instances.size(); i++)
+    {
+        if (isBoxInside(frustumPlanes, AABB[i]))
+        {
+            instances[i].params.w = 1;
+        }
+        else
+        {
+            instances[i].params.w = 0;
+        }
+    }
+}
+
+DirectX::XMFLOAT4 Render::buildPlane(const DirectX::XMFLOAT3& p0, const DirectX::XMFLOAT3& p1, const DirectX::XMFLOAT3& p2, const DirectX::XMFLOAT3& p3)
+{
+    DirectX::XMFLOAT3 firstVec = { p1.x - p0.x, p1.y - p0.y , p1.z - p0.z };
+    DirectX::XMFLOAT3 secondVec = { p3.x - p0.x, p3.y - p0.y , p3.z - p0.z };
+    DirectX::XMFLOAT3 norm = {firstVec.y * secondVec.z - firstVec.z * secondVec.y, -firstVec.x * secondVec.z + firstVec.z * secondVec.x, firstVec.x * secondVec.y - firstVec.y * secondVec.x };
+    float len = pow(norm.x, 2) + pow(norm.y, 2) + pow(norm.z, 2);
+    norm.x = norm.x / len;
+    norm.y = norm.y / len;
+    norm.z = norm.z / len;
+    DirectX::XMFLOAT3 pos =
+    {
+        (p0.x + p1.x + p2.x + p3.x) * 0.25f,
+        (p0.y + p1.y + p2.y + p3.y) * 0.25f,
+        (p0.z + p1.z + p2.z + p3.z) * 0.25f,
+    };
+    float dot = pos.x * norm.x + pos.y * norm.y + pos.z * norm.z;
+    return DirectX::XMFLOAT4({ norm.x, norm.y, norm.z, -dot });
+}
+
+bool Render::isBoxInside(const std::vector<DirectX::XMFLOAT4>& frustum, std::pair<DirectX::XMFLOAT3, DirectX::XMFLOAT3>& AABB)
+{
+    
+    for (int i = 0; i < 6; i++)
+    {
+        const DirectX::XMFLOAT4 norm = frustum[i];
+        DirectX::XMFLOAT4 p(
+            signbit(+norm.x) ? AABB.first.x : AABB.second.x,
+            signbit(+norm.y) ? AABB.first.y : AABB.second.y,
+            signbit(+norm.z) ? AABB.first.z : AABB.second.z,
+            1.0f
+        );
+        float s = frustum[i].x * p.x + frustum[i].y * p.y + frustum[i].z * p.z + frustum[i].w * p.w;
+        if (s < 0.0f)
+        {
+            return false;
+        }
+    }
+
+    return true;
 }
