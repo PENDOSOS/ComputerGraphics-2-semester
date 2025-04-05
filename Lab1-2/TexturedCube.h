@@ -26,7 +26,7 @@ public:
 
 	void render(ID3D11DeviceContext* context, ID3D11Buffer* sceneBuffer, ID3D11Buffer* geomBuffer, ID3D11SamplerState* samplerState);
 
-	void update(ID3D11DeviceContext* context, float angle, bool isCompute);
+	void update(ID3D11DeviceContext* context, float angle, bool& isCompute);
 
 	void cullInCompute(ID3D11DeviceContext* context, ID3D11Buffer* sceneBuffer);
 
@@ -40,8 +40,11 @@ private:
 	bool initInputLayout();
 	bool initTexture();
 	bool initInstances();
+	bool initQuery();
 
 	void terminate();
+
+	void readQueries(ID3D11DeviceContext* context);
 
 private:
 	ID3D11Device* m_pDevice;
@@ -73,7 +76,12 @@ private:
 	std::vector<DirectX::XMINT4> visible;
 
 	int instanceCount;
+	int instanceCountGPU;
 	std::vector<std::pair<DirectX::XMFLOAT3, DirectX::XMFLOAT3>> AABB;
 	bool isCompute;
+
+	UINT64 m_curFrame = 0;
+	UINT64 m_lastCompletedFrame = 0;
+	ID3D11Query* m_queries[10];
 };
 
