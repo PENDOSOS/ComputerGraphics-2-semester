@@ -494,9 +494,11 @@ bool Render::update()
     if (SUCCEEDED(result))
     {
         //m_sceneBuffer = reinterpret_cast<SceneBuffer*>(subresource.pData);
-
+        calcFrustum();
         m_sceneBuffer.VP = DirectX::XMMatrixMultiply(v, p);
         m_sceneBuffer.CameraPos = cameraPos;
+        for (int i = 0; i < 6; i++)
+            m_sceneBuffer.Frustum[i] = frustumPlanes[i];
         
         memcpy(subresource.pData, &m_sceneBuffer, sizeof(SceneBuffer));
 
@@ -512,8 +514,15 @@ bool Render::update()
 
         m_pDeviceContext->UpdateSubresource(m_pLightSourceGeomBuffers[i], 0, nullptr, &lightSourceGB, 0, 0);
     }
-    cull();
-    m_pCube->update(m_pDeviceContext, -m_angle);
+    if (m_computeCull)
+    {
+        m_pCube->cullInCompute(m_pDeviceContext, m_pSceneBuffer);
+    }
+    else
+    {
+        cull();
+    }
+    m_pCube->update(m_pDeviceContext, -m_angle, m_computeCull);
 
     return SUCCEEDED(result);
 }
@@ -833,72 +842,6 @@ void Render::drawTransparentSorted()
 
 void Render::cull()
 {
-    DirectX::XMFLOAT3 cameraDir = { -cosf(m_pCamera->theta) * cosf(m_pCamera->phi), -sinf(m_pCamera->theta), -cosf(m_pCamera->theta) * sinf(m_pCamera->phi) };
-    float upTheta = m_pCamera->theta + (float)PI / 2;
-    DirectX::XMFLOAT3 cameraUp = DirectX::XMFLOAT3{ cosf(upTheta) * cosf(m_pCamera->phi), sinf(upTheta), cosf(upTheta) * sinf(m_pCamera->phi) };
-    DirectX::XMFLOAT3 cameraRight = { cameraUp.y * cameraDir.z - cameraUp.z * cameraDir.y, -cameraUp.x * cameraDir.z + cameraUp.z * cameraDir.x, cameraUp.x * cameraDir.y - cameraUp.y * cameraDir.x };
-    DirectX::XMFLOAT3 cameraPos = { (m_pCamera->poi.x - cameraDir.x) * m_pCamera->r, (m_pCamera->poi.y - cameraDir.y) * m_pCamera->r, (m_pCamera->poi.z - cameraDir.z) * m_pCamera->r };
-    // planes.first - near, planes.second - far
-    std::pair<std::vector<DirectX::XMFLOAT3>, std::vector<DirectX::XMFLOAT3>> planes;
-    planes.first.resize(4);
-    planes.second.resize(4);
-
-    float f = 100.0f;
-    float n = 0.1f;
-    float fov = (float)PI / 3;
-    float aspectRatio = (float)m_height / m_width;
-
-    planes.first[0] = {   
-        cameraPos.x + cameraDir.x * n - cameraRight.x * n * tanf(fov / 2) - cameraUp.x * n * tanf(fov / 2) * aspectRatio,
-        cameraPos.y + cameraDir.y * n - cameraRight.y * n * tanf(fov / 2) - cameraUp.y * n * tanf(fov / 2) * aspectRatio,
-        cameraPos.z + cameraDir.z * n - cameraRight.z * n * tanf(fov / 2) - cameraUp.z * n * tanf(fov / 2) * aspectRatio,
-    };
-    planes.first[3] = {
-        cameraPos.x + cameraDir.x * n - cameraRight.x * n * tanf(fov / 2) + cameraUp.x * n * tanf(fov / 2) * aspectRatio,
-        cameraPos.y + cameraDir.y * n - cameraRight.y * n * tanf(fov / 2) + cameraUp.y * n * tanf(fov / 2) * aspectRatio,
-        cameraPos.z + cameraDir.z * n - cameraRight.z * n * tanf(fov / 2) + cameraUp.z * n * tanf(fov / 2) * aspectRatio,
-    };
-    planes.first[2] = {
-        cameraPos.x + cameraDir.x * n + cameraRight.x * n * tanf(fov / 2) + cameraUp.x * n * tanf(fov / 2) * aspectRatio,
-        cameraPos.y + cameraDir.y * n + cameraRight.y * n * tanf(fov / 2) + cameraUp.y * n * tanf(fov / 2) * aspectRatio,
-        cameraPos.z + cameraDir.z * n + cameraRight.z * n * tanf(fov / 2) + cameraUp.z * n * tanf(fov / 2) * aspectRatio,
-    };
-    planes.first[1] = {
-        cameraPos.x + cameraDir.x * n + cameraRight.x * n * tanf(fov / 2) - cameraUp.x * n * tanf(fov / 2) * aspectRatio,
-        cameraPos.y + cameraDir.y * n + cameraRight.y * n * tanf(fov / 2) - cameraUp.y * n * tanf(fov / 2) * aspectRatio,
-        cameraPos.z + cameraDir.z * n + cameraRight.z * n * tanf(fov / 2) - cameraUp.z * n * tanf(fov / 2) * aspectRatio,
-    };
-
-    planes.second[0] = {
-        cameraPos.x + cameraDir.x * f - cameraRight.x * f * tanf(fov / 2) - cameraUp.x * f * tanf(fov / 2) * aspectRatio,
-        cameraPos.y + cameraDir.y * f - cameraRight.y * f * tanf(fov / 2) - cameraUp.y * f * tanf(fov / 2) * aspectRatio,
-        cameraPos.z + cameraDir.z * f - cameraRight.z * f * tanf(fov / 2) - cameraUp.z * f * tanf(fov / 2) * aspectRatio,
-    };
-    planes.second[3] = {
-        cameraPos.x + cameraDir.x * f - cameraRight.x * f * tanf(fov / 2) + cameraUp.x * f * tanf(fov / 2) * aspectRatio,
-        cameraPos.y + cameraDir.y * f - cameraRight.y * f * tanf(fov / 2) + cameraUp.y * f * tanf(fov / 2) * aspectRatio,
-        cameraPos.z + cameraDir.z * f - cameraRight.z * f * tanf(fov / 2) + cameraUp.z * f * tanf(fov / 2) * aspectRatio,
-    };
-    planes.second[2] = {
-        cameraPos.x + cameraDir.x * f + cameraRight.x * f * tanf(fov / 2) + cameraUp.x * f * tanf(fov / 2) * aspectRatio,
-        cameraPos.y + cameraDir.y * f + cameraRight.y * f * tanf(fov / 2) + cameraUp.y * f * tanf(fov / 2) * aspectRatio,
-        cameraPos.z + cameraDir.z * f + cameraRight.z * f * tanf(fov / 2) + cameraUp.z * f * tanf(fov / 2) * aspectRatio,
-    };
-    planes.second[1] = {
-        cameraPos.x + cameraDir.x * f + cameraRight.x * f * tanf(fov / 2) - cameraUp.x * f * tanf(fov / 2) * aspectRatio,
-        cameraPos.y + cameraDir.y * f + cameraRight.y * f * tanf(fov / 2) - cameraUp.y * f * tanf(fov / 2) * aspectRatio,
-        cameraPos.z + cameraDir.z * f + cameraRight.z * f * tanf(fov / 2) - cameraUp.z * f * tanf(fov / 2) * aspectRatio,
-    };
-
-    std::vector<DirectX::XMFLOAT4> frustumPlanes;
-    frustumPlanes.resize(6);
-    frustumPlanes[0] = buildPlane(planes.first[0], planes.first[1], planes.first[2], planes.first[3]);
-    frustumPlanes[1] = buildPlane(planes.first[0], planes.second[0], planes.second[1], planes.first[1]);
-    frustumPlanes[2] = buildPlane(planes.first[1], planes.second[1], planes.second[2], planes.first[2]);
-    frustumPlanes[3] = buildPlane(planes.first[2], planes.second[2], planes.second[3], planes.first[3]);
-    frustumPlanes[4] = buildPlane(planes.first[3], planes.second[3], planes.second[0], planes.first[0]);
-    frustumPlanes[5] = buildPlane(planes.second[1], planes.second[0], planes.second[3], planes.second[2]);
-
     auto& AABB = m_pCube->getAABB();
     auto& instances = m_pCube->getInstances();
     for (int i = 0; i < instances.size(); i++)
@@ -953,4 +896,73 @@ bool Render::isBoxInside(const std::vector<DirectX::XMFLOAT4>& frustum, std::pai
     }
 
     return true;
+}
+
+void Render::calcFrustum()
+{
+    DirectX::XMFLOAT3 cameraDir = { -cosf(m_pCamera->theta) * cosf(m_pCamera->phi), -sinf(m_pCamera->theta), -cosf(m_pCamera->theta) * sinf(m_pCamera->phi) };
+    float upTheta = m_pCamera->theta + (float)PI / 2;
+    DirectX::XMFLOAT3 cameraUp = DirectX::XMFLOAT3{ cosf(upTheta) * cosf(m_pCamera->phi), sinf(upTheta), cosf(upTheta) * sinf(m_pCamera->phi) };
+    DirectX::XMFLOAT3 cameraRight = { cameraUp.y * cameraDir.z - cameraUp.z * cameraDir.y, -cameraUp.x * cameraDir.z + cameraUp.z * cameraDir.x, cameraUp.x * cameraDir.y - cameraUp.y * cameraDir.x };
+    DirectX::XMFLOAT3 cameraPos = { (m_pCamera->poi.x - cameraDir.x) * m_pCamera->r, (m_pCamera->poi.y - cameraDir.y) * m_pCamera->r, (m_pCamera->poi.z - cameraDir.z) * m_pCamera->r };
+    // planes.first - near, planes.second - far
+    std::pair<std::vector<DirectX::XMFLOAT3>, std::vector<DirectX::XMFLOAT3>> planes;
+    planes.first.resize(4);
+    planes.second.resize(4);
+
+    float f = 100.0f;
+    float n = 0.1f;
+    float fov = (float)PI / 3;
+    float aspectRatio = (float)m_height / m_width;
+
+    planes.first[0] = {
+        cameraPos.x + cameraDir.x * n - cameraRight.x * n * tanf(fov / 2) - cameraUp.x * n * tanf(fov / 2) * aspectRatio,
+        cameraPos.y + cameraDir.y * n - cameraRight.y * n * tanf(fov / 2) - cameraUp.y * n * tanf(fov / 2) * aspectRatio,
+        cameraPos.z + cameraDir.z * n - cameraRight.z * n * tanf(fov / 2) - cameraUp.z * n * tanf(fov / 2) * aspectRatio,
+    };
+    planes.first[3] = {
+        cameraPos.x + cameraDir.x * n - cameraRight.x * n * tanf(fov / 2) + cameraUp.x * n * tanf(fov / 2) * aspectRatio,
+        cameraPos.y + cameraDir.y * n - cameraRight.y * n * tanf(fov / 2) + cameraUp.y * n * tanf(fov / 2) * aspectRatio,
+        cameraPos.z + cameraDir.z * n - cameraRight.z * n * tanf(fov / 2) + cameraUp.z * n * tanf(fov / 2) * aspectRatio,
+    };
+    planes.first[2] = {
+        cameraPos.x + cameraDir.x * n + cameraRight.x * n * tanf(fov / 2) + cameraUp.x * n * tanf(fov / 2) * aspectRatio,
+        cameraPos.y + cameraDir.y * n + cameraRight.y * n * tanf(fov / 2) + cameraUp.y * n * tanf(fov / 2) * aspectRatio,
+        cameraPos.z + cameraDir.z * n + cameraRight.z * n * tanf(fov / 2) + cameraUp.z * n * tanf(fov / 2) * aspectRatio,
+    };
+    planes.first[1] = {
+        cameraPos.x + cameraDir.x * n + cameraRight.x * n * tanf(fov / 2) - cameraUp.x * n * tanf(fov / 2) * aspectRatio,
+        cameraPos.y + cameraDir.y * n + cameraRight.y * n * tanf(fov / 2) - cameraUp.y * n * tanf(fov / 2) * aspectRatio,
+        cameraPos.z + cameraDir.z * n + cameraRight.z * n * tanf(fov / 2) - cameraUp.z * n * tanf(fov / 2) * aspectRatio,
+    };
+
+    planes.second[0] = {
+        cameraPos.x + cameraDir.x * f - cameraRight.x * f * tanf(fov / 2) - cameraUp.x * f * tanf(fov / 2) * aspectRatio,
+        cameraPos.y + cameraDir.y * f - cameraRight.y * f * tanf(fov / 2) - cameraUp.y * f * tanf(fov / 2) * aspectRatio,
+        cameraPos.z + cameraDir.z * f - cameraRight.z * f * tanf(fov / 2) - cameraUp.z * f * tanf(fov / 2) * aspectRatio,
+    };
+    planes.second[3] = {
+        cameraPos.x + cameraDir.x * f - cameraRight.x * f * tanf(fov / 2) + cameraUp.x * f * tanf(fov / 2) * aspectRatio,
+        cameraPos.y + cameraDir.y * f - cameraRight.y * f * tanf(fov / 2) + cameraUp.y * f * tanf(fov / 2) * aspectRatio,
+        cameraPos.z + cameraDir.z * f - cameraRight.z * f * tanf(fov / 2) + cameraUp.z * f * tanf(fov / 2) * aspectRatio,
+    };
+    planes.second[2] = {
+        cameraPos.x + cameraDir.x * f + cameraRight.x * f * tanf(fov / 2) + cameraUp.x * f * tanf(fov / 2) * aspectRatio,
+        cameraPos.y + cameraDir.y * f + cameraRight.y * f * tanf(fov / 2) + cameraUp.y * f * tanf(fov / 2) * aspectRatio,
+        cameraPos.z + cameraDir.z * f + cameraRight.z * f * tanf(fov / 2) + cameraUp.z * f * tanf(fov / 2) * aspectRatio,
+    };
+    planes.second[1] = {
+        cameraPos.x + cameraDir.x * f + cameraRight.x * f * tanf(fov / 2) - cameraUp.x * f * tanf(fov / 2) * aspectRatio,
+        cameraPos.y + cameraDir.y * f + cameraRight.y * f * tanf(fov / 2) - cameraUp.y * f * tanf(fov / 2) * aspectRatio,
+        cameraPos.z + cameraDir.z * f + cameraRight.z * f * tanf(fov / 2) - cameraUp.z * f * tanf(fov / 2) * aspectRatio,
+    };
+
+
+    frustumPlanes.resize(6);
+    frustumPlanes[0] = buildPlane(planes.first[0], planes.first[1], planes.first[2], planes.first[3]);
+    frustumPlanes[1] = buildPlane(planes.first[0], planes.second[0], planes.second[1], planes.first[1]);
+    frustumPlanes[2] = buildPlane(planes.first[1], planes.second[1], planes.second[2], planes.first[2]);
+    frustumPlanes[3] = buildPlane(planes.first[2], planes.second[2], planes.second[3], planes.first[3]);
+    frustumPlanes[4] = buildPlane(planes.first[3], planes.second[3], planes.second[0], planes.first[0]);
+    frustumPlanes[5] = buildPlane(planes.second[1], planes.second[0], planes.second[3], planes.second[2]);
 }
