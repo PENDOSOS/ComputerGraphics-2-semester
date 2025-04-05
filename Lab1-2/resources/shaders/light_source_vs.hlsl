@@ -1,6 +1,6 @@
 #include "resources/SceneBuffer.h"
 
-cbuffer GeomBuffer
+cbuffer GeomBuffer : register(b1)
 {
     float4x4 model;
     float4x4 normalMatrix;
