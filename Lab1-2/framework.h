@@ -36,6 +36,7 @@ enum shader_stage
 {
 	Vertex,
 	Pixel,
+    Compute,
 };
 
 inline HRESULT SetResourceName(ID3D11DeviceChild* pResource, const std::string& name)
@@ -211,6 +212,21 @@ inline bool compileShader(ID3D11Device* device, LPCTSTR srcFilename, const std::
             if (SUCCEEDED(result))
             {
                 *ppShader = pPixelShader;
+            }
+            break;
+        }
+        case Compute:
+        {
+            ID3D11ComputeShader* pComputeShader = nullptr;
+            result = D3DCompile(data.data(), data.size(), "", macros.data(), &includeHandler, "CS", "cs_5_0", flags, 0, &pCode, &pErrMsg);
+            if (!SUCCEEDED(result))
+            {
+                break;
+            }
+            result = device->CreateComputeShader(pCode->GetBufferPointer(), pCode->GetBufferSize(), nullptr, &pComputeShader);
+            if (SUCCEEDED(result))
+            {
+                *ppShader = pComputeShader;
             }
             break;
         }

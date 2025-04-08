@@ -10,5 +10,6 @@ cbuffer SceneBuffer : register(b0)
     int4 sceneParams; // x - light count, y - use normal map, z - show normals, w - use filter
     Light lights[3];
     float4 ambientColor;
+    float4 frustum[6];
     float3 cameraPos;
 };

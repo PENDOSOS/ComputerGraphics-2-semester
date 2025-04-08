@@ -22,6 +22,7 @@ struct SceneBuffer
     DirectX::XMINT4 SceneParams; // x - light count
     Light lights[3];
     DirectX::XMFLOAT4 AmbientColor;
+    DirectX::XMFLOAT4 Frustum[6];
     DirectX::XMFLOAT3 CameraPos;
 };
 
@@ -77,6 +78,7 @@ public:
         , m_showNormals(false)
         , m_pPostprocess(nullptr)
         , m_useFilter(false)
+        , m_computeCull(true)
     {
         for (int i = 0; i < 3; i++)
         {
@@ -111,6 +113,8 @@ private:
     void cull();
     DirectX::XMFLOAT4 buildPlane(const DirectX::XMFLOAT3& p0, const DirectX::XMFLOAT3& p1, const DirectX::XMFLOAT3& p2, const DirectX::XMFLOAT3& p3);
     bool isBoxInside(const std::vector<DirectX::XMFLOAT4>& frustum, std::pair<DirectX::XMFLOAT3, DirectX::XMFLOAT3>& AABB);
+
+    void calcFrustum();
 
 private:
     ID3D11Device* m_pDevice;
@@ -164,8 +168,10 @@ private:
     bool m_useNormalMap;
     bool m_showNormals;
     bool m_useFilter;
+    bool m_computeCull;
 
     std::vector<LightModel*> lights;
     std::vector<GeomBuffer> geomBuffers;
+    std::vector<DirectX::XMFLOAT4> frustumPlanes;
 };
 

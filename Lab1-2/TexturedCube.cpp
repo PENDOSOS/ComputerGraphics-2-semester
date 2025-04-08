@@ -31,12 +31,14 @@ TexturedCube::TexturedCube(ID3D11Device* device)
 	, m_pVertexBuffer(nullptr)
 	, m_pVertexShader(nullptr)
     , m_pLightingParamBuffer(nullptr)
+    , instanceCount(0)
 {
     instanceCount = MAX_INST;
 	initBuffers();
 	initInputLayout();
 	initTexture();
     initInstances();
+    initQuery();
 }
 
 TexturedCube::~TexturedCube()
@@ -66,42 +68,93 @@ void TexturedCube::render(ID3D11DeviceContext* context, ID3D11Buffer* sceneBuffe
         context->VSSetConstantBuffers(1, 1, &m_pGeomBufferInst);
         context->PSSetConstantBuffers(0, 1, &sceneBuffer);
         context->PSSetConstantBuffers(1, 1, &m_pGeomBufferInst);
-
-        context->DrawIndexedInstanced(36, instanceCount, 0, 0, 0);
+        if (isCompute)
+        {
+            context->CopyResource(m_pIndirectArgs, m_pIndirectArgsSrc);
+            context->Begin(m_queries[m_curFrame % 10]);
+            context->DrawIndexedInstancedIndirect(m_pIndirectArgs, 0);
+            context->End(m_queries[m_curFrame % 10]);
+            ++m_curFrame;
+        }
+        else
+        {
+            context->DrawIndexedInstanced(36, instanceCount, 0, 0, 0);
+        }
     }
 }
 
-void TexturedCube::update(ID3D11DeviceContext* context, float angle)
+void TexturedCube::update(ID3D11DeviceContext* context, float angle, bool& isCompute)
 {
-    instanceCount = 0;
-    std::vector<GeomBufferInst> visibleInstances;
-    //visibleInstances.resize(20);
-    for (int i = 0; i < MAX_INST; i++)
-    {
-        float offsetX = geomBuffers[i].M.r[3].m128_f32[0];
-        float offsetY = geomBuffers[i].M.r[3].m128_f32[1];
-        float offsetZ = geomBuffers[i].M.r[3].m128_f32[2];
-        // if tiles texture - rotate cube
-        if (geomBuffers[i].params.z)
+    this->isCompute = isCompute;
+    
+        instanceCount = 0;
+        std::vector<GeomBufferInst> visibleInstances;
+        //visibleInstances.resize(20);
+        for (int i = 0; i < MAX_INST; i++)
         {
-            geomBuffers[i].M = DirectX::XMMatrixMultiply(DirectX::XMMatrixRotationY(angle), DirectX::XMMatrixTranslation(offsetX, offsetY, offsetZ));
-            geomBuffers[i].NormalM = DirectX::XMMatrixTranspose(DirectX::XMMatrixInverse(nullptr, geomBuffers[i].M));
+            float offsetX = geomBuffers[i].M.r[3].m128_f32[0];
+            float offsetY = geomBuffers[i].M.r[3].m128_f32[1];
+            float offsetZ = geomBuffers[i].M.r[3].m128_f32[2];
+            // if tiles texture - rotate cube
+            if (geomBuffers[i].params.z)
+            {
+                geomBuffers[i].M = DirectX::XMMatrixMultiply(DirectX::XMMatrixRotationY(angle), DirectX::XMMatrixTranslation(offsetX, offsetY, offsetZ));
+                geomBuffers[i].NormalM = DirectX::XMMatrixTranspose(DirectX::XMMatrixInverse(nullptr, geomBuffers[i].M));
+            }
+            
+            if (!isCompute)
+            {
+                instanceCount += geomBuffers[i].params.w;
+                if ((int)geomBuffers[i].params.w)
+                {
+                    visibleInstances.push_back(geomBuffers[i]);
+                }
+            }
         }
-        instanceCount += geomBuffers[i].params.w;
-        if ((int)geomBuffers[i].params.w)
+        if (!isCompute)
         {
-            visibleInstances.push_back(geomBuffers[i]);
+            visibleInstances.resize(20);
+            context->UpdateSubresource(m_pGeomBufferInst, 0, nullptr, visibleInstances.data(), 0, 0);
         }
-    }
-    visibleInstances.resize(20);
-    context->UpdateSubresource(m_pGeomBufferInst, 0, nullptr, visibleInstances.data(), 0, 0);
+        context->UpdateSubresource(m_pGeomBufferInstCompute, 0, nullptr, geomBuffers.data(), 0, 0);
 
     {
+        readQueries(context);
         ImGui::Begin("Culling stats");
+        ImGui::Checkbox("GPU culling", &isCompute);
         ImGui::Text("Instances: %d", MAX_INST);
-        ImGui::Text("Visible instances %d", instanceCount);
+        if (isCompute)
+            ImGui::Text("Visible instances GPU %d", instanceCountGPU);
+        else
+            ImGui::Text("Visible instances %d", instanceCount);
         ImGui::End();
     }
+}
+
+void TexturedCube::cullInCompute(ID3D11DeviceContext* context, ID3D11Buffer* sceneBuffer)
+{
+    D3D11_DRAW_INDEXED_INSTANCED_INDIRECT_ARGS args;
+    args.IndexCountPerInstance = 36;
+    args.InstanceCount = 0;
+    args.StartIndexLocation = 0;
+    args.BaseVertexLocation = 0;
+    args.StartInstanceLocation = 0;
+
+    context->UpdateSubresource(m_pIndirectArgsSrc, 0, nullptr, &args, 0, 0);
+
+    UINT groupNumber = 1;
+
+    ID3D11Buffer* constBuffers[3] = { sceneBuffer, m_pCullParams, m_pGeomBufferInstCompute };
+    context->CSSetConstantBuffers(0, 3, constBuffers);
+
+    ID3D11UnorderedAccessView* uavBuffers[2] = { m_pIndirectArgsUAV, m_pGeomBufferInstGPU_UAV };
+    context->CSSetUnorderedAccessViews(0, 2, uavBuffers, nullptr);
+
+    context->CSSetShader(m_pComputeShader, nullptr, 0);
+
+    context->Dispatch(groupNumber, 1, 1);
+
+    context->CopyResource(m_pGeomBufferInst, m_pGeomBufferInstGPU);
 }
 
 bool TexturedCube::initBuffers()
@@ -209,6 +262,85 @@ bool TexturedCube::initBuffers()
 
     result = SetResourceName(m_pLightingParamBuffer, "lighting params buffer");
 
+    D3D11_BUFFER_DESC desc;
+    desc.ByteWidth = sizeof(D3D11_DRAW_INDEXED_INSTANCED_INDIRECT_ARGS);
+    desc.Usage = D3D11_USAGE_DEFAULT;
+    desc.BindFlags = D3D11_BIND_UNORDERED_ACCESS;
+    desc.CPUAccessFlags = 0;
+    desc.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
+    desc.StructureByteStride = sizeof(UINT);
+
+    result = m_pDevice->CreateBuffer(&desc, nullptr, &m_pIndirectArgsSrc);
+    if (SUCCEEDED(result))
+    {
+        result = SetResourceName(m_pIndirectArgsSrc, "indirect args src buffer");
+    }
+    if (SUCCEEDED(result))
+    {
+        D3D11_UNORDERED_ACCESS_VIEW_DESC uavDesc;
+        uavDesc.Format = DXGI_FORMAT_UNKNOWN;
+        uavDesc.ViewDimension = D3D11_UAV_DIMENSION_BUFFER;
+        uavDesc.Buffer.FirstElement = 0;
+        uavDesc.Buffer.NumElements = sizeof(D3D11_DRAW_INDEXED_INSTANCED_INDIRECT_ARGS) / sizeof(UINT);
+        uavDesc.Buffer.Flags = 0;
+
+        result = m_pDevice->CreateUnorderedAccessView(m_pIndirectArgsSrc, &uavDesc, &m_pIndirectArgsUAV);
+    }
+    if (SUCCEEDED(result))
+    {
+        result = SetResourceName(m_pIndirectArgsUAV, "indirect args UAV");
+    }
+
+    if (SUCCEEDED(result))
+    {
+        D3D11_BUFFER_DESC desc;
+        desc.ByteWidth = sizeof(D3D11_DRAW_INDEXED_INSTANCED_INDIRECT_ARGS);
+        desc.Usage = D3D11_USAGE_DEFAULT;
+        desc.BindFlags = 0;
+        desc.CPUAccessFlags = 0;
+        desc.MiscFlags = D3D11_RESOURCE_MISC_DRAWINDIRECT_ARGS;
+        desc.StructureByteStride = 0;
+
+        result = m_pDevice->CreateBuffer(&desc, nullptr, &m_pIndirectArgs);
+        if (SUCCEEDED(result))
+        {
+            result = SetResourceName(m_pIndirectArgs, "indirect args");
+        }
+    }
+
+    if (SUCCEEDED(result))
+    {
+
+        D3D11_BUFFER_DESC desc = {};
+        desc.ByteWidth = sizeof(GeomBufferInst) * MAX_INST;
+        desc.Usage = D3D11_USAGE_DEFAULT;
+        desc.BindFlags = D3D11_BIND_UNORDERED_ACCESS;
+        desc.CPUAccessFlags = 0;
+        desc.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
+        desc.StructureByteStride = sizeof(GeomBufferInst);
+
+        result = m_pDevice->CreateBuffer(&desc, nullptr, &m_pGeomBufferInstGPU);
+        if (SUCCEEDED(result))
+        {
+            result = SetResourceName(m_pGeomBufferInstGPU, "instance buffer GPU");
+        }
+        if (SUCCEEDED(result))
+        {
+            D3D11_UNORDERED_ACCESS_VIEW_DESC uavDesc;
+            uavDesc.Format = DXGI_FORMAT_UNKNOWN;
+            uavDesc.ViewDimension = D3D11_UAV_DIMENSION_BUFFER;
+            uavDesc.Buffer.FirstElement = 0;
+            uavDesc.Buffer.NumElements = MAX_INST;
+            uavDesc.Buffer.Flags = 0;
+
+            result = m_pDevice->CreateUnorderedAccessView(m_pGeomBufferInstGPU, &uavDesc, &m_pGeomBufferInstGPU_UAV);
+        }
+        if (SUCCEEDED(result))
+        {
+            result = SetResourceName(m_pGeomBufferInstGPU_UAV, "instance buffer GPU_UAV");
+        }
+    }
+
     return true;
 }
 
@@ -232,6 +364,10 @@ bool TexturedCube::initInputLayout()
     if (SUCCEEDED(result))
     {
         result = compileShader(m_pDevice, L"resources/shaders/lighted_cube_ps.hlsl", {}, shader_stage::Pixel, (ID3D11DeviceChild**)&m_pPixelShader);
+    }
+    if (SUCCEEDED(result))
+    {
+        result = compileShader(m_pDevice, L"resources/shaders/frustum_cull_cs.hlsl", {}, shader_stage::Compute, (ID3D11DeviceChild**)&m_pComputeShader);
     }
 
     if (SUCCEEDED(result))
@@ -399,12 +535,108 @@ bool TexturedCube::initInstances()
 
     result = SetResourceName(m_pGeomBufferInst, "instance buffer");
 
+    result = m_pDevice->CreateBuffer(&instanceBufferDesc, &instanceData, &m_pGeomBufferInstCompute);
+
+    if (FAILED(result))
+        return false;
+
+    result = SetResourceName(m_pGeomBufferInstCompute, "instance buffer for compute");
+
+    D3D11_BUFFER_DESC cullParamsDesc;
+    cullParamsDesc.ByteWidth = sizeof(CullParams);
+    cullParamsDesc.Usage = D3D11_USAGE_DEFAULT;
+    cullParamsDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+    cullParamsDesc.CPUAccessFlags = 0;
+    cullParamsDesc.MiscFlags = 0;
+    cullParamsDesc.StructureByteStride = 0;
+
+    CullParams cp;
+    for (int i = 0; i < MAX_INST; i++)
+    {
+        cp.bbMin[i] = { AABB[i].first.x, AABB[i].first.y, AABB[i].first.z, 0 };
+        cp.bbMax[i] = { AABB[i].second.x, AABB[i].second.y, AABB[i].second.z, 0 };
+    }
+
+    D3D11_SUBRESOURCE_DATA cullData = {};
+    cullData.pSysMem = &cp;
+    cullData.SysMemPitch = sizeof(CullParams);
+    result = m_pDevice->CreateBuffer(&cullParamsDesc, &cullData, &m_pCullParams);
+    if (SUCCEEDED(result))
+    {
+        result = SetResourceName(m_pCullParams, "cull params buffer");
+    }
+
+    return true;
+}
+
+bool TexturedCube::initQuery()
+{
+    HRESULT result = S_OK;
+
+    D3D11_QUERY_DESC desc;
+    desc.Query = D3D11_QUERY_PIPELINE_STATISTICS;
+    desc.MiscFlags = 0;
+    for (int i = 0; i < 10 && SUCCEEDED(result); i++)
+    {
+        result = m_pDevice->CreateQuery(&desc, &m_queries[i]);
+    }
+    assert(SUCCEEDED(result));
     return true;
 }
 
 void TexturedCube::terminate()
 {
+    for (int i = 0; i < 10; i++)
+    {
+        if (m_queries[i] != nullptr)
+        {
+            m_queries[i]->Release();
+            m_queries[i] = nullptr;
+        }
+    }
+
+    if (m_pIndirectArgsUAV != nullptr)
+    {
+        m_pIndirectArgsUAV->Release();
+        m_pIndirectArgsUAV = nullptr;
+    }
     
+    if (m_pIndirectArgsSrc != nullptr)
+    {
+        m_pIndirectArgsSrc->Release();
+        m_pIndirectArgsSrc = nullptr;
+    }
+    
+    if (m_pIndirectArgs != nullptr)
+    {
+        m_pIndirectArgs->Release();
+        m_pIndirectArgs = nullptr;
+    }
+
+    if (m_pGeomBufferInstGPU_UAV != nullptr)
+    {
+        m_pGeomBufferInstGPU_UAV->Release();
+        m_pGeomBufferInstGPU_UAV = nullptr;
+    }
+    
+    if (m_pGeomBufferInstGPU != nullptr)
+    {
+        m_pGeomBufferInstGPU->Release();
+        m_pGeomBufferInstGPU = nullptr;
+    }
+    
+    if (m_pGeomBufferInstCompute != nullptr)
+    {
+        m_pGeomBufferInstCompute->Release();
+        m_pGeomBufferInstCompute = nullptr;
+    }
+    
+    if (m_pCullParams != nullptr)
+    {
+        m_pCullParams->Release();
+        m_pCullParams = nullptr;
+    }
+
     if (m_pGeomBufferInst != nullptr)
     {
         m_pGeomBufferInst->Release();
@@ -427,6 +659,12 @@ void TexturedCube::terminate()
     {
         m_pInputLayout->Release();
         m_pInputLayout = nullptr;
+    }
+
+    if (m_pComputeShader != nullptr)
+    {
+        m_pComputeShader->Release();
+        m_pComputeShader = nullptr;
     }
 
     if (m_pVertexShader != nullptr)
@@ -457,5 +695,24 @@ void TexturedCube::terminate()
     {
         m_pIndexBuffer->Release();
         m_pIndexBuffer = nullptr;
+    }
+}
+
+void TexturedCube::readQueries(ID3D11DeviceContext* context)
+{
+    D3D11_QUERY_DATA_PIPELINE_STATISTICS stats;
+    while (m_lastCompletedFrame < m_curFrame)
+    {
+        HRESULT result = context->GetData(m_queries[m_lastCompletedFrame % 10], &stats, sizeof(D3D11_QUERY_DATA_PIPELINE_STATISTICS), 0);
+        if (result == S_OK)
+        {
+            instanceCountGPU = (int)stats.IAPrimitives / 12;
+
+            ++m_lastCompletedFrame;
+        }
+        else
+        {
+            break;
+        }
     }
 }
